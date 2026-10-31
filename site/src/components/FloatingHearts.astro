@@ -1,0 +1,22 @@
+<div id="floating-hearts"></div>
+
+<script>
+  (function initFloatingHearts() {
+    const container = document.getElementById('floating-hearts');
+    if (!container) return;
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const icons = ['♥', '❤', '💕'];
+    const count = 8;
+    for (let i = 0; i < count; i++) {
+      const el = document.createElement('div');
+      el.className = 'float-heart';
+      el.textContent = icons[i % icons.length];
+      el.style.left = Math.random() * 100 + '%';
+      el.style.top = Math.random() * 100 + '%';
+      el.style.fontSize = 16 + Math.random() * 20 + 'px';
+      el.style.animationDelay = Math.random() * -15 + 's';
+      el.style.animationDuration = 18 + Math.random() * 8 + 's';
+      container.appendChild(el);
+    }
+  })();
+</script>

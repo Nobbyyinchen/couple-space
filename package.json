@@ -1,0 +1,16 @@
+{
+  "name": "our-universe-local",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0",
+  "scripts": {
+    "start": "node scripts/server.mjs",
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "export": "node scripts/export.mjs",
+    "backup": "node scripts/backup.mjs",
+    "doctor": "node scripts/doctor.mjs"
+  },
+  "engines": { "node": ">=22" }
+}

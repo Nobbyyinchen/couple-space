@@ -1,0 +1,18 @@
+{
+  "siteName": "我们的宇宙",
+  "names": ["小宇", "小宙"],
+  "startDate": "",
+  "timezone": "Asia/Shanghai",
+  "motto": "把平凡的日子，收藏成我们的浪漫。",
+  "letter": "亲爱的你：\n\n想把那些来不及认真说的话，和一起走过的日子，慢慢收藏在这里。\n\n以后，这里会有我们去过的地方、分享过的晚餐，还有很多个普通却闪闪发光的瞬间。\n\n这一封是示例信件。换成你自己的话，这个小小的宇宙就有了第一颗星星。",
+  "anniversaries": [],
+  "wishes": [
+    {"id":"wish-sea","text":"一起去海边，等一场日落","done":false},
+    {"id":"wish-meal","text":"做一顿只属于我们的晚餐","done":false},
+    {"id":"wish-photo","text":"每年在同一个地方拍一张合照","done":false},
+    {"id":"wish-letter","text":"给一年后的彼此写一封信","done":false}
+  ],
+  "demo": true,
+  "model": "qwen3:8b",
+  "revision": 1
+}

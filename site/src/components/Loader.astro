@@ -1,0 +1,34 @@
+---
+import { CONFIG } from '../config';
+import type { LocaleMessages } from '../i18n/utils';
+
+interface Props {
+  messages?: LocaleMessages;
+}
+
+const { messages } = Astro.props;
+const label = CONFIG.loadingLabel ?? messages?.loader?.loading ?? '加载中...';
+---
+
+<div id="loader">
+  <div class="loader-content">
+    <svg viewBox="0 0 100 100" width="72" height="72">
+      <path
+      class="heart-path"
+      d="M50,85 C22,66 5,52 5,33 C5,18 16,8 28,8 C38,8 47,15 50,24 C53,15 62,8 72,8 C84,8 95,18 95,33 C95,52 78,66 50,85Z"
+      fill="none"
+      stroke="var(--pink)"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      />
+      <path
+      class="heart-fill"
+      d="M50,85 C22,66 5,52 5,33 C5,18 16,8 28,8 C38,8 47,15 50,24 C53,15 62,8 72,8 C84,8 95,18 95,33 C95,52 78,66 50,85Z"
+      fill="var(--pink)"
+      stroke="none"
+      />
+    </svg>
+    <span class="loader-label">{label}</span>
+  </div>
+</div>

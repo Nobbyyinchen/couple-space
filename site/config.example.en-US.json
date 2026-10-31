@@ -1,0 +1,210 @@
+{
+  "boy": "John",
+  "girl": "Jane",
+  "loveDate": "2020-01-01",
+  "marriageDate": "2022-05-20",
+  "milestones": [
+    {
+      "date": "2020-01-01",
+      "label": "First Date",
+      "icon": "💕",
+      "story": "That day we became us. Every day since has had someone to hold dear."
+    },
+    {
+      "date": "2022-05-20",
+      "label": "Marriage",
+      "icon": "💑",
+      "story": "We walked out of the registry with our little red book, the sun just right. From then on we were officially \"us\" in the eyes of the law."
+    },
+    {
+      "date": "2022-10-01",
+      "label": "Wedding",
+      "icon": "💍",
+      "story": "In front of family and friends, we said our vows."
+    },
+    {
+      "date": "2023-01-15",
+      "label": "Honeymoon",
+      "icon": "✈️",
+      "story": "Our first big trip together, full of memories."
+    }
+  ],
+  "quotes": [
+    "From first sight to forever",
+    "May we look back on the years with love, and grow old side by side",
+    "You are the one I've been waiting for",
+    "Meeting you felt like coming home",
+    "One heart, one life, together",
+    "Ten years like one day, one day better than ten years",
+    "You are my daily bread and my starry sky",
+    "Hold your hand and grow old with you",
+    "Life is long; with you it has a destination",
+    "From first flutter to lasting peace",
+    "Two people, three meals, four seasons—year after year",
+    "In ordinary days, you are the gentlest surprise"
+  ],
+  "music": {
+    "enabled": false,
+    "autoPlay": false,
+    "playMode": "sequence",
+    "allowModeSwitch": true,
+    "startPolicy": "first",
+    "volume": 0.7,
+    "rememberState": true,
+    "smartShuffleWindow": 3,
+    "tracks": []
+  },
+  "secretMessage": "Thank you for finding me. Here's to the rest of our story. ♥",
+  "photos": [
+    {
+      "url": "https://images.unsplash.com/photo-1519741497674-611481863552?w=400&h=400&fit=crop",
+      "caption": "Wedding"
+    },
+    {
+      "url": "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?w=400&h=400&fit=crop",
+      "caption": "Together"
+    },
+    {
+      "url": "https://images.unsplash.com/photo-1529634002551-f0d0d940c0e5?w=400&h=400&fit=crop",
+      "caption": "Vows"
+    },
+    {
+      "url": "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=400&h=400&fit=crop",
+      "caption": "Hand in Hand"
+    },
+    {
+      "url": "https://images.unsplash.com/photo-1511285560929-80b456fea0e9?w=400&h=400&fit=crop",
+      "caption": "Happiness"
+    }
+  ],
+  "googleAnalyticsId": "",
+  "siteUrl": "https://love.example.com",
+  "siteName": "Love Page",
+  "siteLocale": "en-US",
+  "seoDescription": "John & Jane's love page · Together since 2020, married in 2022. From first sight to forever. Our story, milestones, and countdowns.",
+  "siteImage": "/og.png",
+  "siteLogo": "/favicon.svg",
+  "iosStartupImages": [
+    {
+      "src": "/og.png",
+      "media": "(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)"
+    },
+    {
+      "src": "/og.png",
+      "media": "(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)"
+    }
+  ],
+  "shareTemplates": ["classic", "minimal", "romantic"],
+  "statsMode": "hybrid",
+  "stats": [
+    {
+      "label": "Trips Together",
+      "value": 12,
+      "icon": "✈️"
+    },
+    {
+      "label": "Shared Hobbies",
+      "value": 8,
+      "icon": "🎯"
+    },
+    {
+      "label": "Anniversaries",
+      "value": 2,
+      "icon": "💕"
+    }
+  ],
+  "wishes": [
+    {
+      "text": "See the Northern Lights in Iceland together",
+      "done": false
+    },
+    {
+      "text": "Take a couple photo every year",
+      "done": true
+    },
+    {
+      "text": "Learn a new skill together",
+      "done": false
+    }
+  ],
+  "timers": [
+    {
+      "label": "Together Since",
+      "icon": "💕",
+      "date": "2020-01-01"
+    },
+    {
+      "label": "Married Since",
+      "icon": "💍",
+      "date": "2022-05-20"
+    }
+  ],
+  "includeDefaultAnniversaries": false,
+  "anniversaries": [
+    {
+      "label": "Dating Anniversary",
+      "icon": "💕",
+      "date": "2020-01-01",
+      "easterEggTemplates": {
+        "soon": "💗 {gap} days until our {displayLabel}. Can't wait for more moments together~",
+        "today": "💗 Today is our {displayLabel}. Thanks for being here. Love you as always!",
+        "celebrate": "Happy {displayLabel}! May our love stay as sweet as day one~"
+      }
+    },
+    {
+      "label": "Wedding Anniversary",
+      "icon": "💍",
+      "date": "2022-05-20",
+      "easterEggTemplates": {
+        "soon": "💍 {gap} days until our {displayLabel}. Looking forward to the next one~",
+        "today": "💍 Today is our {displayLabel}. Grateful to walk this path with you!",
+        "celebrate": "Happy {displayLabel}! Here's to holding hands for life."
+      }
+    },
+    {
+      "label": "Honeymoon Anniversary",
+      "icon": "✈️",
+      "date": "2023-01-15",
+      "easterEggTemplates": {
+        "soon": "✈️ {gap} days until our {displayLabel}. Ready for the next adventure~",
+        "today": "✈️ Today is our {displayLabel}. Celebrating our first journey together!",
+        "celebrate": "Happy {displayLabel}. May we always be on the road together."
+      }
+    }
+  ],
+  "anniversaryCountdownThreshold": 10,
+  "anniversarySortOrder": "asc",
+  "loadingLabel": "Getting things ready for you...",
+  "sectionOrder": ["todaySummary", "stats", "timers", "timeline", "anniversary", "wishes"],
+  "sections": {
+    "todaySummary": true,
+    "stats": true,
+    "timeline": true,
+    "timers": true,
+    "anniversary": true,
+    "wishes": true,
+    "photoWall": true,
+    "themeToggle": true
+  },
+  "privacy": {
+    "privateMode": true,
+    "noIndex": true
+  },
+  "defaultTheme": "dark",
+  "welcomeMessage": "Welcome to our page ♥",
+  "enableWelcomeMessage": true,
+  "passwordConfig": {
+    "enabled": false,
+    "password": "",
+    "hint": "Enter access password",
+    "successMessage": "Welcome to our space ❤️",
+    "errorMessage": "That doesn't look right. Try again?",
+    "bruteForceProtection": {
+      "enabled": true,
+      "freeAttempts": 5,
+      "baseLockSeconds": 3,
+      "maxLockSeconds": 120,
+      "failureResetMinutes": 30
+    }
+  }
+}

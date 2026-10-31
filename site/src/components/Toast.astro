@@ -1,0 +1,67 @@
+---
+import { APP_EVENTS } from '../constants/client';
+
+const toastEvent = APP_EVENTS.toast;
+---
+
+<div id="appToast" class="app-toast" role="status" aria-live="polite" aria-atomic="true" hidden></div>
+
+<script define:vars={{ toastEvent }}>
+  (function initToast() {
+    const toast = document.getElementById('appToast');
+    if (!toast) return;
+
+    const typeClassList = ['is-info', 'is-success', 'is-warning', 'is-error'];
+    let hideTimer = 0;
+    let cleanupTimer = 0;
+
+    function clearTypeClass() {
+      typeClassList.forEach((name) => toast.classList.remove(name));
+    }
+
+    function hideToast() {
+      toast.classList.remove('show');
+      if (hideTimer) {
+        clearTimeout(hideTimer);
+        hideTimer = 0;
+      }
+      if (cleanupTimer) {
+        clearTimeout(cleanupTimer);
+      }
+      cleanupTimer = window.setTimeout(() => {
+        toast.setAttribute('hidden', 'true');
+        cleanupTimer = 0;
+      }, 220);
+    }
+
+    function showToast(detail) {
+      const message = typeof detail?.message === 'string' ? detail.message.trim() : '';
+      if (!message) return;
+
+      const duration = typeof detail?.duration === 'number' && detail.duration > 0 ? detail.duration : 2200;
+      const type = detail?.type === 'success' || detail?.type === 'warning' || detail?.type === 'error' ? detail.type : 'info';
+
+      toast.textContent = message;
+      if (cleanupTimer) {
+        clearTimeout(cleanupTimer);
+        cleanupTimer = 0;
+      }
+      toast.removeAttribute('hidden');
+      clearTypeClass();
+      toast.classList.add(`is-${type}`);
+      toast.classList.add('show');
+
+      if (hideTimer) {
+        clearTimeout(hideTimer);
+      }
+      hideTimer = window.setTimeout(hideToast, duration);
+    }
+
+    window.addEventListener(toastEvent, (event) => {
+      const detail = event instanceof CustomEvent ? event.detail : undefined;
+      showToast(detail);
+    });
+
+    toast.addEventListener('click', hideToast);
+  })();
+</script>

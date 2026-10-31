@@ -1,0 +1,338 @@
+---
+import { resolveStatsMode, type Config, type StatItem } from '../config';
+import { STORAGE_KEYS } from '../constants/client';
+import type { LocaleMessages } from '../i18n/utils';
+
+interface Props {
+  config: Config;
+  messages?: LocaleMessages;
+}
+
+interface DashboardStat {
+  key: string;
+  label: string;
+  value: string | number;
+  icon?: string;
+  note?: string;
+}
+
+interface StatsSectionState {
+  visitCount: boolean;
+  timeline: boolean;
+  timers: boolean;
+  photoWall: boolean;
+  wishes: boolean;
+}
+
+const { config, messages } = Astro.props;
+const statsMode = resolveStatsMode(config);
+const sectionState: StatsSectionState = {
+  visitCount: config.statsShowVisitCount === true,
+  timeline: config.sections?.timeline !== false,
+  timers: config.sections?.timers !== false,
+  photoWall: config.sections?.photoWall !== false,
+  wishes: config.sections?.wishes !== false,
+};
+
+const statsLabels = {
+  loveDays: messages?.stats?.loveDays || '相恋天数',
+  marriageDays: messages?.stats?.marriageDays || '婚姻天数',
+  milestoneCount: messages?.stats?.milestoneCount || '里程碑节点',
+  photoCount: messages?.stats?.photoCount || '照片回忆',
+  wishCompletion: messages?.stats?.wishCompletion || '愿望完成率',
+  visitCount: messages?.stats?.visitCount || '本机访问次数',
+  deviceOnly: messages?.stats?.deviceOnly || '仅本设备',
+  firstVisit: messages?.stats?.firstVisit || '首次访问',
+  lastVisit: messages?.stats?.lastVisit || '上次',
+};
+
+function wholeDaysSince(dateStr: string, now = new Date()): number {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const start = new Date(year || 1970, (month || 1) - 1, day || 1);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diff = today.getTime() - start.getTime();
+  return diff > 0 ? Math.floor(diff / 864e5) : 0;
+}
+
+function shouldShowStat(statKey: string, sections: StatsSectionState): boolean {
+  // 计时器已经展示了相恋/婚姻时长，打开计时器时不再重复
+    if ((statKey === 'loveDays' || statKey === 'marriageDays') && sections.timers) return false;
+    if (statKey === 'visitCount' && !sections.visitCount) return false;
+  if (statKey === 'milestoneCount' && !sections.timeline) return false;
+  if (statKey === 'photoCount' && !sections.photoWall) return false;
+  if (statKey === 'wishCompletion' && !sections.wishes) return false;
+  return true;
+}
+
+function buildAutoStats(
+  sections: StatsSectionState,
+  now: Date,
+  visitCount: number,
+  visitNote: string,
+): DashboardStat[] {
+  const wishes = config.wishes || [];
+  const completedWishes = wishes.filter((item) => item.done).length;
+  const wishRate = wishes.length ? `${Math.round((completedWishes / wishes.length) * 100)}%` : '0%';
+
+  const rawStats: DashboardStat[] = [
+    { key: 'loveDays', label: statsLabels.loveDays, value: wholeDaysSince(config.loveDate, now), icon: '💕' },
+    { key: 'marriageDays', label: statsLabels.marriageDays, value: wholeDaysSince(config.marriageDate, now), icon: '💍' },
+    { key: 'milestoneCount', label: statsLabels.milestoneCount, value: config.milestones.length, icon: '🗓️' },
+    { key: 'photoCount', label: statsLabels.photoCount, value: config.photos.length, icon: '📷' },
+    { key: 'wishCompletion', label: statsLabels.wishCompletion, value: wishRate, icon: '✅' },
+    { key: 'visitCount', label: statsLabels.visitCount, value: visitCount, icon: '🏠', note: visitNote },
+  ];
+
+  return rawStats.filter((stat) => shouldShowStat(stat.key, sections));
+}
+
+function mapManualStats(items: StatItem[]): DashboardStat[] {
+  return items.map((item, index) => ({
+    key: `manual-${index}`,
+    label: item.label,
+    value: item.value,
+    icon: item.icon,
+  }));
+}
+
+function mergeHybridStats(manualStats: DashboardStat[], autoStats: DashboardStat[]): DashboardStat[] {
+  const manualByLabel = new Map<string, DashboardStat>();
+  const consumedLabels = new Set<string>();
+  const merged: DashboardStat[] = [];
+
+  for (const stat of manualStats) {
+    const label = stat.label.trim();
+    if (!label || manualByLabel.has(label)) continue;
+    manualByLabel.set(label, stat);
+  }
+
+  for (const stat of autoStats) {
+    const overridden = manualByLabel.get(stat.label);
+    if (overridden) {
+      consumedLabels.add(stat.label);
+      merged.push({
+        ...stat,
+        value: overridden.value,
+        icon: overridden.icon || stat.icon,
+      });
+      continue;
+    }
+    merged.push(stat);
+  }
+
+  for (const stat of manualStats) {
+    const label = stat.label.trim();
+    if (!label || consumedLabels.has(label)) continue;
+    merged.push(stat);
+    consumedLabels.add(label);
+  }
+
+  return merged.slice(0, 6);
+}
+
+const manualStats = mapManualStats(config.stats || []);
+const initialAutoStats = buildAutoStats(sectionState, new Date(), 0, `${statsLabels.firstVisit} · ${statsLabels.deviceOnly}`);
+const initialStats = statsMode === 'manual'
+  ? manualStats
+  : statsMode === 'auto'
+    ? initialAutoStats
+    : mergeHybridStats(manualStats, initialAutoStats);
+
+if (!initialStats.length) {
+  return null;
+}
+
+const statsPayload = {
+  statsMode,
+  sectionState,
+  loveDate: config.loveDate,
+  marriageDate: config.marriageDate,
+  milestonesCount: config.milestones.length,
+  photosCount: config.photos.length,
+  wishes: config.wishes || [],
+  manualStats: config.stats || [],
+  visitsStorageKey: STORAGE_KEYS.visits,
+  lastVisitStorageKey: STORAGE_KEYS.lastVisitAt,
+  uiLabels: statsLabels,
+};
+---
+
+<section class="w-full max-w-xl sm:max-w-2xl lg:max-w-3xl px-2 reveal" id="statsSection">
+  <h2 class="section-title">{messages?.sections?.stats || '我们的数字'}</h2>
+  <div class="stats-grid stats-dashboard" id="statsDashboard">
+    {initialStats.map((s, index) => (
+      <div class={`stats-item glass ${index < 2 ? 'stats-item--primary' : ''}`} data-stat-key={s.key}>
+        {s.icon && <span class="stats-icon">{s.icon}</span>}
+        <span class="stats-value" data-stat-value>{s.value}</span>
+        <span class="stats-label">{s.label}</span>
+        {s.note && <span class="stats-note" data-stat-note>{s.note}</span>}
+      </div>
+    ))}
+  </div>
+</section>
+
+<script id="stats-script-payload" type="application/json" set:html={JSON.stringify(statsPayload)}></script>
+<script>
+  import { STORAGE_KEYS } from '../constants/client';
+  import { readJsonPayload } from '../utils';
+
+  function readStatsPayload() {
+    return readJsonPayload('stats-script-payload', {
+      statsMode: 'hybrid',
+      sectionState: {} as Record<string, boolean>,
+      loveDate: '',
+      marriageDate: '',
+      milestonesCount: 0,
+      photosCount: 0,
+      wishes: [],
+      manualStats: [],
+      visitsStorageKey: STORAGE_KEYS.visits,
+      lastVisitStorageKey: STORAGE_KEYS.lastVisitAt,
+      uiLabels: {} as Record<string, string>,
+    });
+  }
+
+  function toWholeDays(dateStr, now = new Date()) {
+    const [year, month, day] = String(dateStr).split('-').map(Number);
+    const start = new Date(year || 1970, (month || 1) - 1, day || 1);
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const diff = today.getTime() - start.getTime();
+    return diff > 0 ? Math.floor(diff / 864e5) : 0;
+  }
+
+  function formatVisitTime(isoText) {
+    const date = new Date(isoText);
+    if (Number.isNaN(date.getTime())) return '';
+    return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  }
+
+  function shouldShowStat(statKey, sections) {
+    // 计时器已经展示了相恋/婚姻时长，打开计时器时不再重复
+    if ((statKey === 'loveDays' || statKey === 'marriageDays') && sections.timers) return false;
+    if (statKey === 'visitCount' && !sections.visitCount) return false;
+    if (statKey === 'milestoneCount' && !sections.timeline) return false;
+    if (statKey === 'photoCount' && !sections.photoWall) return false;
+    if (statKey === 'wishCompletion' && !sections.wishes) return false;
+    return true;
+  }
+
+  function computeAutoStats(payload, visitCount, visitNote) {
+    const wishes = Array.isArray(payload.wishes) ? payload.wishes : [];
+    const completedCount = wishes.filter((item) => item && item.done).length;
+    const wishRate = wishes.length ? `${Math.round((completedCount / wishes.length) * 100)}%` : '0%';
+    const ui = payload.uiLabels || {};
+    const rawStats = [
+      { key: 'loveDays', label: ui.loveDays || '相恋天数', value: toWholeDays(payload.loveDate), icon: '💕' },
+      { key: 'marriageDays', label: ui.marriageDays || '婚姻天数', value: toWholeDays(payload.marriageDate), icon: '💍' },
+      { key: 'milestoneCount', label: ui.milestoneCount || '里程碑节点', value: payload.milestonesCount, icon: '🗓️' },
+      { key: 'photoCount', label: ui.photoCount || '照片回忆', value: payload.photosCount, icon: '📷' },
+      { key: 'wishCompletion', label: ui.wishCompletion || '愿望完成率', value: wishRate, icon: '✅' },
+      { key: 'visitCount', label: ui.visitCount || '本机访问次数', value: visitCount, icon: '🏠', note: visitNote },
+    ];
+    return rawStats.filter((stat) => shouldShowStat(stat.key, payload.sectionState));
+  }
+
+  function mapManualStats(items) {
+    return items.map((item, index) => ({
+      key: `manual-${index}`,
+      label: typeof item?.label === 'string' ? item.label : '',
+      value: typeof item?.value === 'number' || typeof item?.value === 'string' ? item.value : '',
+      icon: typeof item?.icon === 'string' ? item.icon : '',
+    }));
+  }
+
+  function mergeHybridStats(manualStats, autoStats) {
+    const manualByLabel = new Map();
+    const consumedLabels = new Set();
+    const merged = [];
+
+    manualStats.forEach((stat) => {
+      const label = String(stat.label || '').trim();
+      if (!label || manualByLabel.has(label)) return;
+      manualByLabel.set(label, stat);
+    });
+
+    autoStats.forEach((stat) => {
+      const overridden = manualByLabel.get(stat.label);
+      if (overridden) {
+        consumedLabels.add(stat.label);
+        merged.push({
+          ...stat,
+          value: overridden.value,
+          icon: overridden.icon || stat.icon,
+        });
+        return;
+      }
+      merged.push(stat);
+    });
+
+    manualStats.forEach((stat) => {
+      const label = String(stat.label || '').trim();
+      if (!label || consumedLabels.has(label)) return;
+      merged.push(stat);
+      consumedLabels.add(label);
+    });
+
+    return merged.slice(0, 6);
+  }
+
+  function applyStatsToDOM(stats) {
+    const dashboard = document.getElementById('statsDashboard');
+    if (!(dashboard instanceof HTMLElement)) return;
+
+    const map = new Map(stats.map((stat) => [stat.key, stat]));
+    dashboard.querySelectorAll('[data-stat-key]').forEach((card) => {
+      const key = card.getAttribute('data-stat-key') || '';
+      const stat = map.get(key);
+      if (!stat) return;
+
+      const valueEl = card.querySelector('[data-stat-value]');
+      if (valueEl) valueEl.textContent = String(stat.value);
+
+      const noteEl = card.querySelector('[data-stat-note]');
+      if (noteEl) {
+        noteEl.textContent = stat.note || '';
+      }
+    });
+  }
+
+  (function initStatsDashboard() {
+    const store = window.__LOVE_STORE__;
+    const payload = readStatsPayload();
+    const manualStats = mapManualStats(payload.manualStats);
+    const ui = payload.uiLabels || {};
+
+    let visitCount = 0;
+    let visitNote = ui.deviceOnly || '仅本设备';
+    try {
+      const lastVisitRaw = store?.getLocal(payload.lastVisitStorageKey);
+      const countRaw = store?.getLocal(payload.visitsStorageKey);
+      const lastVisit = typeof lastVisitRaw === 'string' ? lastVisitRaw : '';
+      const storedCount = Number.parseInt(String(countRaw ?? '0'), 10);
+      visitCount = Number.isFinite(storedCount) && storedCount > 0 ? storedCount + 1 : 1;
+      store?.setLocal(payload.visitsStorageKey, visitCount);
+      store?.setLocal(payload.lastVisitStorageKey, new Date().toISOString());
+      const formatted = lastVisit ? formatVisitTime(lastVisit) : '';
+      const lastVisitLabel = ui.lastVisit || '上次';
+      const firstVisitLabel = ui.firstVisit || '首次访问';
+      const deviceOnlyLabel = ui.deviceOnly || '仅本设备';
+      visitNote = formatted ? `${lastVisitLabel}：${formatted} · ${deviceOnlyLabel}` : `${firstVisitLabel} · ${deviceOnlyLabel}`;
+    } catch {
+      visitCount = 0;
+      visitNote = ui.deviceOnly || '仅本设备';
+    }
+
+    function refresh() {
+      const autoStats = computeAutoStats(payload, visitCount, visitNote);
+      const currentStats = payload.statsMode === 'manual'
+        ? manualStats
+        : payload.statsMode === 'auto'
+          ? autoStats
+          : mergeHybridStats(manualStats, autoStats);
+      applyStatsToDOM(currentStats);
+    }
+
+    refresh();
+    setInterval(refresh, 60_000);
+  })();
+</script>

@@ -1,0 +1,355 @@
+---
+import { resolveAnniversaries, type Config } from '../config';
+import { APP_EVENTS } from '../constants/client';
+import type { LocaleMessages } from '../i18n/utils';
+import { DEFAULT_MESSAGES } from '../i18n/utils';
+
+interface Props {
+  config: Config;
+  messages?: LocaleMessages;
+}
+
+const { config, messages } = Astro.props;
+const anniversaries = resolveAnniversaries(config);
+
+// 纪念日倒计时彩蛋：多少天内显示特殊文案，默认 10 天；0 表示关闭
+const countdownThreshold = config.anniversaryCountdownThreshold ?? 10;
+// 纪念日排序方式：'asc' | 'desc' | 'default'，默认 'asc'
+const sortOrder = config.anniversarySortOrder ?? 'asc';
+const pageUnlockedEvent = APP_EVENTS.pageUnlocked;
+
+const defaultAnniversaryLabels = DEFAULT_MESSAGES.anniversary;
+const ui = {
+  generateCard: messages?.anniversary?.generateCard || defaultAnniversaryLabels.generateCard,
+  startedFrom: messages?.anniversary?.startedFrom || defaultAnniversaryLabels.startedFrom,
+  clickToClose: messages?.anniversary?.clickToClose || defaultAnniversaryLabels.clickToClose,
+  // Default templates for anniversary text
+  templates: messages?.anniversary?.templates || defaultAnniversaryLabels.templates,
+};
+
+const anniversaryPayload = {
+  anniversariesData: anniversaries,
+  countdownThreshold,
+  sortOrder,
+  pageUnlockedEvent,
+  generateMemorialCardEvent: APP_EVENTS.generateMemorialCard,
+  uiLabels: ui,
+  i18n: {
+    suffix: messages?.anniversary?.suffix ?? defaultAnniversaryLabels.suffix,
+    templates: ui.templates,
+  },
+};
+---
+
+<div class="anniversary-section w-full max-w-xl sm:max-w-2xl lg:max-w-3xl reveal">
+  <div class="anniversary-cards grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-3 sm:gap-4">
+    {anniversaries.map((a, i) => (
+      <div
+        class="glass anniversary-card px-5 py-4 text-center group"
+        id={`anniversaryCard-${i}`}
+        data-anniversary-index={i}
+      >
+        <button
+          type="button"
+          class="anniversary-share-cta"
+          data-anniversary-share-index={i}
+          aria-label={ui.generateCard.replace('{label}', a.label)}
+          title={ui.generateCard.replace('{label}', a.label)}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="18" cy="5" r="3" />
+            <circle cx="6" cy="12" r="3" />
+            <circle cx="18" cy="19" r="3" />
+            <path d="M8.6 10.8 15.4 6.2" />
+            <path d="M8.6 13.2 15.4 17.8" />
+          </svg>
+          <span class="sr-only">{ui.generateCard.replace('{label}', '')}</span>
+        </button>
+        <div class="text-pink-300/70 text-xs sm:text-sm mb-2 tracking-wide">{a.icon} {a.label}</div>
+        <p class="anniversary-text text-sm sm:text-base font-medium min-h-[2.5em] flex items-center justify-center" id={`anniversaryText-${i}`}></p>
+        <div class="anniversary-since text-white/50 text-xs mt-2 tabular-nums">{ui.startedFrom.replace('{date}', a.date)}</div>
+      </div>
+    ))}
+  </div>
+</div>
+
+<script id="anniversary-script-payload" type="application/json" set:html={JSON.stringify(anniversaryPayload)}></script>
+<script>
+  import {
+    formatDisplayLabel,
+    getAnniversaryInfo,
+    renderAnniversaryText,
+  } from '../scripts/anniversary/logic.ts';
+  import { APP_EVENTS } from '../constants/client';
+  import { readJsonPayload } from '../utils';
+
+  const {
+    anniversariesData,
+    countdownThreshold,
+    sortOrder,
+    pageUnlockedEvent,
+    generateMemorialCardEvent,
+    uiLabels,
+    i18n,
+  } = readJsonPayload('anniversary-script-payload', {
+    anniversariesData: [],
+    countdownThreshold: 10,
+    sortOrder: 'asc',
+    pageUnlockedEvent: APP_EVENTS.pageUnlocked,
+    generateMemorialCardEvent: APP_EVENTS.generateMemorialCard,
+    uiLabels: { clickToClose: '' },
+    i18n: undefined,
+  });
+
+  // 彩蛋是否显示「点击任意处关闭」提示，改为 true 可恢复
+  const showCelebrateCloseTip = false;
+
+  function celebrate(todayMessages) {
+    if (document.querySelector('.celebrate-overlay')) return;
+    const prefersReduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const isCoarsePointer = matchMedia('(pointer: coarse)').matches || matchMedia('(hover: none)').matches;
+    // 部分移动端会长期命中 reduced-motion，导致彩蛋只剩文字；这里提供轻量动效兜底
+    const forceMotionOnMobile = prefersReduced && isCoarsePointer;
+    const enableMotion = !prefersReduced || forceMotionOnMobile;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'celebrate-overlay';
+    if (forceMotionOnMobile) overlay.classList.add('celebrate-force-motion');
+
+    const textWrap = document.createElement('div');
+    textWrap.className = 'celebrate-text-wrap';
+    const mainText = document.createElement('div');
+    mainText.className = 'celebrate-main-text font-hand';
+    mainText.textContent = todayMessages.length === 1
+      ? '\u{1F389} ' + todayMessages[0] + ' \u{1F389}'
+      : '\u{1F389}\n' + todayMessages.join('\n') + '\n\u{1F389}';
+    textWrap.appendChild(mainText);
+    if (showCelebrateCloseTip) {
+      const subText = document.createElement('div');
+      subText.className = 'celebrate-sub-text';
+      subText.textContent = uiLabels?.clickToClose || '点击任意处关闭';
+      textWrap.appendChild(subText);
+    }
+    overlay.appendChild(textWrap);
+    document.body.appendChild(overlay);
+
+    var timers = [];
+    if (enableMotion) {
+      spawnBurst(overlay, timers);
+      var rain = setInterval(function() { spawnRain(overlay); }, 200);
+      timers.push(rain);
+      timers.push(setTimeout(function() { clearInterval(rain); }, 7000));
+    }
+
+    var duration = enableMotion ? 10000 : 3000;
+    timers.push(setTimeout(function() { dismiss(overlay); }, duration));
+
+    function closeOverlay() {
+      timers.forEach(function(t) { clearTimeout(t); clearInterval(t); });
+      dismiss(overlay);
+    }
+    overlay.addEventListener('click', closeOverlay);
+    function onKey(e) {
+      if (e.key === 'Escape') { closeOverlay(); document.removeEventListener('keydown', onKey); }
+    }
+    document.addEventListener('keydown', onKey);
+  }
+
+  function dismiss(overlay) {
+    if (!overlay || overlay.dataset.closing) return;
+    overlay.dataset.closing = '1';
+    overlay.classList.add('celebrate-exit');
+    setTimeout(function() { overlay.remove(); }, 1200);
+  }
+
+  function spawnBurst(container, timers) {
+    var emojis = ['\u{1F389}', '\u2728', '\u{1F495}', '\u{1F31F}', '\u2764\uFE0F', '\u{1F490}', '\u{1F942}', '\u{1F38A}'];
+    var colors = ['#ff6b9d', '#ffd700', '#ff8fab', '#ffe066', '#fff', '#ff4d7d'];
+    for (var i = 0; i < 18; i++) {
+      (function(idx) {
+        timers.push(setTimeout(function() {
+          var el = document.createElement('div');
+          if (Math.random() > 0.4) {
+            el.className = 'celebrate-confetti celebrate-burst';
+            el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+            el.style.fontSize = (16 + Math.random() * 16) + 'px';
+          } else {
+            el.className = 'celebrate-confetti celebrate-burst celebrate-dot';
+            el.style.setProperty('--dot-color', colors[Math.floor(Math.random() * colors.length)]);
+            var s = (6 + Math.random() * 8) + 'px';
+            el.style.width = s;
+            el.style.height = s;
+          }
+          var angle = Math.random() * Math.PI * 2;
+          var dist = 80 + Math.random() * 220;
+          el.style.setProperty('--burst-x', Math.cos(angle) * dist + 'px');
+          el.style.setProperty('--burst-y', (Math.sin(angle) * dist - 100) + 'px');
+          el.style.left = '50%';
+          el.style.top = '50%';
+          container.appendChild(el);
+          setTimeout(function() { el.remove(); }, 3000);
+        }, idx * 50));
+      })(i);
+    }
+  }
+
+  function spawnRain(container) {
+    var emojis = ['\u{1F389}', '\u2728', '\u{1F495}', '\u{1F31F}', '\u2764\uFE0F', '\u{1F490}', '\u{1F942}'];
+    var colors = ['#ff6b9d', '#ffd700', '#ff8fab', '#ffe066', '#fff', '#ff4d7d'];
+    var count = 2 + Math.floor(Math.random() * 2);
+    for (var i = 0; i < count; i++) {
+      var el = document.createElement('div');
+      if (Math.random() > 0.35) {
+        el.className = 'celebrate-confetti celebrate-fall';
+        el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        el.style.fontSize = (14 + Math.random() * 14) + 'px';
+      } else {
+        el.className = 'celebrate-confetti celebrate-fall celebrate-dot';
+        el.style.setProperty('--dot-color', colors[Math.floor(Math.random() * colors.length)]);
+        var s = (5 + Math.random() * 7) + 'px';
+        el.style.width = s;
+        el.style.height = s;
+      }
+      el.style.left = (Math.random() * 100) + '%';
+      el.style.top = '-5%';
+      var drift = -60 + Math.random() * 120;
+      var dur = 3 + Math.random() * 2;
+      el.style.setProperty('--drift-x', drift + 'px');
+      el.style.setProperty('animation-duration', dur + 's', 'important');
+      container.appendChild(el);
+      setTimeout((function(e) { return function() { e.remove(); }; })(el), (dur + 0.5) * 1000);
+    }
+  }
+
+  function waitForReady() {
+    return new Promise(function(resolve) {
+      var loader = document.getElementById('loader');
+      var guard = document.getElementById('passwordGuard');
+
+      function isReady() {
+        var loaderHidden = !loader || loader.classList.contains('hidden');
+        var guardHidden = !guard || !guard.classList.contains('show');
+        return loaderHidden && guardHidden;
+      }
+
+      if (isReady()) { resolve(); return; }
+
+      var resolved = false;
+      function tryResolve() {
+        if (resolved || !isReady()) return;
+        resolved = true;
+        resolve();
+      }
+
+      if (loader) {
+        var loaderObs = new MutationObserver(tryResolve);
+        loaderObs.observe(loader, { attributes: true, attributeFilter: ['class'] });
+      }
+
+      if (guard) {
+        var guardObs = new MutationObserver(tryResolve);
+        guardObs.observe(guard, { attributes: true, attributeFilter: ['class'] });
+      }
+
+      window.addEventListener(pageUnlockedEvent, function() {
+        setTimeout(tryResolve, 100);
+      }, { once: true });
+
+      setTimeout(function() { if (!resolved) { resolved = true; resolve(); } }, 15000);
+    });
+  }
+
+  // Create carrier with i18n templates
+  function createTemplateCarrier(entry) {
+    const defaultTemplates = uiLabels?.templates || {};
+    return {
+      ...entry,
+      easterEggTemplates: {
+        normal: entry.easterEggTemplates?.normal || defaultTemplates.normal,
+        soon: entry.easterEggTemplates?.soon || defaultTemplates.soon,
+        today: entry.easterEggTemplates?.today || defaultTemplates.today,
+        celebrate: entry.easterEggTemplates?.celebrate || defaultTemplates.celebrate,
+      },
+    };
+  }
+
+  function updateAnniversaries() {
+    let anyToday = false;
+    const todayMessages = [];
+
+    // 计算所有纪念日的临近天数并排序
+    const sortedAnniversaries = anniversariesData
+      .map((entry, originalIndex) => ({
+        entry,
+        originalIndex,
+        ...getAnniversaryInfo(entry.date, entry.label)
+      }))
+      .sort((a, b) => {
+        // 'default' 等同于 'asc'（升序）
+        const order = sortOrder === 'desc' ? -1 : 1;
+        return (a.gap - b.gap) * order;
+      });
+
+    sortedAnniversaries.forEach(({ entry, gap, nth, label, originalIndex }, sortedIndex) => {
+      const textEl = document.getElementById(`anniversaryText-${originalIndex}`);
+      const cardEl = document.getElementById(`anniversaryCard-${originalIndex}`);
+      if (!textEl || !cardEl) return;
+
+      // 使用 Flexbox order 属性重新排序卡片
+      cardEl.style.order = String(sortedIndex);
+      cardEl.classList.toggle('anniversary-next', sortedIndex === 0);
+
+      const displayLabel = formatDisplayLabel(label, nth, i18n);
+      const params = { label, displayLabel, gap, nth };
+      const carrier = createTemplateCarrier(entry);
+
+      if (gap === 0) {
+        textEl.textContent = renderAnniversaryText(carrier, 'today', params, i18n);
+        cardEl.classList.add('anniversary-today');
+        cardEl.classList.remove('anniversary-soon');
+        anyToday = true;
+        todayMessages.push(renderAnniversaryText(carrier, 'celebrate', params, i18n));
+      } else {
+        cardEl.classList.remove('anniversary-today');
+        const isSoon = countdownThreshold > 0 && gap <= countdownThreshold && gap > 0;
+        if (isSoon) {
+          cardEl.classList.add('anniversary-soon');
+          textEl.textContent = renderAnniversaryText(carrier, 'soon', params, i18n);
+        } else {
+          cardEl.classList.remove('anniversary-soon');
+          textEl.textContent = renderAnniversaryText(carrier, 'normal', params, i18n);
+        }
+      }
+    });
+    document.documentElement.dataset.anniversaryToday = anyToday ? '1' : '';
+    if (anyToday) {
+      if (!document.documentElement.dataset.celebrated) {
+        document.documentElement.dataset.celebrated = '1';
+        waitForReady().then(function() { celebrate(todayMessages); });
+      }
+    } else {
+      delete document.documentElement.dataset.celebrated;
+    }
+  }
+
+  function bindAnniversaryCardShare() {
+    document.querySelectorAll('[data-anniversary-share-index]').forEach((button) => {
+      if (!(button instanceof HTMLButtonElement)) return;
+      button.addEventListener('click', () => {
+        const index = Number(button.dataset.anniversaryShareIndex);
+        window.dispatchEvent(
+          new CustomEvent(generateMemorialCardEvent, {
+            detail: {
+              source: 'anniversary-card',
+              anniversaryIndex: Number.isFinite(index) ? index : null,
+            },
+          }),
+        );
+      });
+    });
+  }
+
+  bindAnniversaryCardShare();
+  updateAnniversaries();
+  setInterval(updateAnniversaries, 60_000);
+</script>

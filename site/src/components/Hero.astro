@@ -1,0 +1,21 @@
+---
+import { resolveMotto, type Config } from '../config';
+
+interface Props {
+  config: Config;
+}
+
+const { config } = Astro.props;
+const motto = resolveMotto(config);
+---
+
+<section class="text-center select-none reveal relative" id="heroSection">
+  <h1 class="hero-names font-cursive text-4xl sm:text-5xl md:text-6xl font-bold tracking-wide leading-tight">
+    {config.boy}
+    <span class="hero-heart inline-block text-3xl sm:text-4xl md:text-5xl mx-1">♥</span>
+    {config.girl}
+  </h1>
+  <p class="font-hand text-pink-200/60 text-xl sm:text-2xl mt-2 tracking-widest transition-opacity duration-500" id="motto">
+    {motto}
+  </p>
+</section>

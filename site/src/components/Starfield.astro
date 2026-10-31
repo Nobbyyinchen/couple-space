@@ -1,0 +1,142 @@
+---
+---
+
+<canvas id="starfield"></canvas>
+
+<script>
+  (function initStarfield() {
+    const cvs = document.getElementById('starfield');
+    if (!cvs) return;
+    const ctx = cvs.getContext('2d');
+    if (!ctx) return;
+    let W: number, H: number;
+    const isMobile = matchMedia('(max-width:768px)').matches;
+    const prefersReducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const STAR_COUNT = isMobile ? 90 : 180;
+    const MAX_ACTIVE_METEORS = isMobile ? 2 : 4;
+    const METEOR_GAP_MIN = isMobile ? 450 : 250;
+    const METEOR_GAP_MAX = isMobile ? 2000 : 1400;
+    let stars: Array<{ x: number; y: number; r: number; base: number; phase: number; speed: number }> = [];
+    let meteors: Array<{ x: number; y: number; vx: number; vy: number; life: number; fade: number; len: number }> = [];
+    let nextMeteorAt = 0;
+
+    function resize() {
+      W = cvs.width = innerWidth;
+      H = cvs.height = innerHeight;
+    }
+
+    function createStars() {
+      stars = Array.from({ length: STAR_COUNT }, () => ({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        r: Math.random() * 1.4 + 0.4,
+        base: Math.random() * 0.5 + 0.25,
+        phase: Math.random() * Math.PI * 2,
+        speed: Math.random() * 0.008 + 0.003,
+      }));
+    }
+
+    function spawnMeteor() {
+      meteors.push({
+        x: Math.random() * W * 0.7 + W * 0.1,
+        y: Math.random() * H * 0.3,
+        vx: 6 + Math.random() * 4,
+        vy: 1.5 + Math.random() * 1,
+        life: 1,
+        fade: 0.012 + Math.random() * 0.008,
+        len: 50 + Math.random() * 50,
+      });
+    }
+
+    function pickMeteorBurstCount() {
+      const seed = Math.random();
+      if (isMobile) {
+        if (seed < 0.82) return 1;
+        if (seed < 0.97) return 2;
+        return 3;
+      }
+      if (seed < 0.7) return 1;
+      if (seed < 0.92) return 2;
+      return 3;
+    }
+
+    function spawnMeteorBurst() {
+      const slots = MAX_ACTIVE_METEORS - meteors.length;
+      if (slots <= 0) return;
+      const count = Math.min(slots, pickMeteorBurstCount());
+      for (let i = 0; i < count; i++) spawnMeteor();
+    }
+
+    function scheduleNextMeteor(now: number) {
+      nextMeteorAt = now + METEOR_GAP_MIN + Math.random() * (METEOR_GAP_MAX - METEOR_GAP_MIN);
+    }
+
+    let tick = 0;
+    function frame(now: number) {
+      ctx.clearRect(0, 0, W, H);
+
+      const neb = ctx.createRadialGradient(W * 0.35, H * 0.4, 0, W * 0.35, H * 0.4, W * 0.45);
+      neb.addColorStop(0, 'rgba(255,107,157,0.025)');
+      neb.addColorStop(1, 'transparent');
+      ctx.fillStyle = neb;
+      ctx.fillRect(0, 0, W, H);
+
+      tick += 0.016;
+      for (const s of stars) {
+        const a = s.base + Math.sin(tick * s.speed * 60 + s.phase) * 0.25;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        
+        // 根据主题调整星星颜色
+        const isLight = document.documentElement.dataset.theme === 'light';
+        ctx.fillStyle = isLight 
+          ? `rgba(255, 107, 157, ${Math.max(0.1, a * 0.5)})` // 浅色模式用淡淡的粉色
+          : `rgba(255, 255, 255, ${Math.max(0.05, a)})`;
+        ctx.fill();
+      }
+
+      for (let i = meteors.length - 1; i >= 0; i--) {
+        const m = meteors[i];
+        m.x += m.vx;
+        m.y += m.vy;
+        m.life -= m.fade;
+        if (m.life <= 0) {
+          meteors.splice(i, 1);
+          continue;
+        }
+        const tx = m.x - (m.vx * m.len) / 5;
+        const ty = m.y - (m.vy * m.len) / 5;
+        const g = ctx.createLinearGradient(tx, ty, m.x, m.y);
+        
+        const isLight = document.documentElement.dataset.theme === 'light';
+        const meteorColor = isLight ? '255,107,157' : '255,255,255';
+        
+        g.addColorStop(0, `rgba(${meteorColor},0)`);
+        g.addColorStop(1, `rgba(${meteorColor},${m.life * 0.7})`);
+        ctx.beginPath();
+        ctx.moveTo(tx, ty);
+        ctx.lineTo(m.x, m.y);
+        ctx.strokeStyle = g;
+        ctx.lineWidth = isLight ? 1.5 : 1.2; // 浅色模式下稍微加粗一点
+        ctx.stroke();
+      }
+
+      if (!prefersReducedMotion && now >= nextMeteorAt) {
+        spawnMeteorBurst();
+        scheduleNextMeteor(now);
+      }
+
+      requestAnimationFrame(frame);
+    }
+
+    resize();
+    createStars();
+    scheduleNextMeteor(performance.now());
+    requestAnimationFrame(frame);
+
+    addEventListener('resize', () => {
+      resize();
+      createStars();
+    });
+  })();
+</script>

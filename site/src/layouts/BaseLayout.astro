@@ -1,0 +1,324 @@
+---
+import { resolveIosStartupImages, resolveMotto, resolvePrivacySettings, resolveSiteImage, resolveSiteLogo, type Config } from '../config';
+import { STORAGE_KEYS, STORAGE_ROOT_KEYS, STORE_SCHEMA_VERSION } from '../constants/client';
+import '../styles/global.css';
+import PasswordGuard from '../components/PasswordGuard.astro';
+import Toast from '../components/Toast.astro';
+import type { LocaleMessages } from '../i18n/utils';
+import { DEFAULT_LOCALE, getLocalePath, type LocaleCode } from '../i18n/locales';
+
+interface Props {
+  title: string;
+  config: Config;
+  locale?: LocaleCode;
+  messages?: LocaleMessages;
+  alternateLocales?: { code: LocaleCode; slug: string }[];
+}
+
+const { title, config, locale = 'zh-CN', messages, alternateLocales = [] } = Astro.props;
+
+const motto = resolveMotto(config);
+const siteUrl = config.siteUrl || 'https://love.example.com';
+const canonicalUrl = Astro.url.pathname === '/' ? siteUrl : `${siteUrl}${Astro.url.pathname}`;
+
+// SEO with i18n support
+const seoKeywordsTemplate = messages?.seo?.keywordsTemplate || '情侣纪念日,结婚纪念日,恋爱时光,婚姻时光,{boy},{girl},{motto}';
+const keywords = seoKeywordsTemplate
+  .replace('{boy}', config.boy)
+  .replace('{girl}', config.girl)
+  .replace('{motto}', motto);
+
+const seoDescriptionTemplate = messages?.seo?.descriptionTemplate || '{boy} 与 {girl} 的专属爱页面 · {motto}';
+const description = config.seoDescription || seoDescriptionTemplate
+  .replace('{boy}', config.boy)
+  .replace('{girl}', config.girl)
+  .replace('{motto}', motto);
+
+const siteImage = resolveSiteImage(config);
+const siteLogo = resolveSiteLogo(config);
+const iosStartupImages = resolveIosStartupImages(config);
+const siteName = config.siteName?.trim() || title;
+const privacy = resolvePrivacySettings(config);
+const robots = privacy.noIndex ? 'noindex, nofollow' : 'index, follow';
+const ogLocale = locale === 'en-US' ? 'en_US' : 'zh_CN';
+const alternateLinks = alternateLocales.map(({ code }) => ({
+  code,
+  href: `${siteUrl}${getLocalePath(code) === '/' ? '' : getLocalePath(code)}`,
+}));
+const xDefaultHref = `${siteUrl}${getLocalePath(DEFAULT_LOCALE) === '/' ? '' : getLocalePath(DEFAULT_LOCALE)}`;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'WebPage',
+  name: siteName,
+  description,
+  url: canonicalUrl,
+  inLanguage: locale,
+  mainEntity: {
+    '@type': 'Person',
+    name: `${config.boy} & ${config.girl}`,
+    description: motto,
+  },
+};
+
+const themeStorageKey = STORAGE_KEYS.theme;
+const localRootKey = STORAGE_ROOT_KEYS.local;
+const sessionRootKey = STORAGE_ROOT_KEYS.session;
+const storeSchemaVersion = STORE_SCHEMA_VERSION;
+const defaultTheme = config.defaultTheme || 'dark';
+const buildTime = new Date().toISOString();
+---
+
+<html lang={locale}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="keywords" content={keywords} />
+    <meta name="author" content={`${config.boy} & ${config.girl}`} />
+    <meta name="build-time" content={buildTime} />
+    <meta name="robots" content={robots} />
+    <meta name="theme-color" content="#0a0a1a" />
+    <meta name="application-name" content={siteName} />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content={siteName} />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="msapplication-TileColor" content="#0a0a1a" />
+    <meta name="msapplication-TileImage" content={siteLogo} />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="canonical" href={canonicalUrl} />
+
+    {alternateLinks.map(({ code, href }) => (
+      <link rel="alternate" hreflang={code} href={href} />
+    ))}
+    <link rel="alternate" hreflang="x-default" href={xDefaultHref} />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:image" content={siteImage} />
+    <meta property="og:locale" content={ogLocale} />
+    <meta property="og:site_name" content={siteName} />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={siteImage} />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href={siteLogo} />
+    <link rel="apple-touch-icon" href={siteLogo} />
+    {iosStartupImages.map((item) =>
+      item.media ? (
+        <link rel="apple-touch-startup-image" href={item.href} media={item.media} />
+      ) : (
+        <link rel="apple-touch-startup-image" href={item.href} />
+      )
+    )}
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@500;700&family=Ma+Shan+Zheng&display=swap"
+      rel="stylesheet"
+    />
+
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+    <script
+      is:inline
+      define:vars={{
+        themeStorageKey,
+        defaultTheme,
+        localRootKey,
+        sessionRootKey,
+        storeSchemaVersion,
+      }}
+    >
+      (function initThemePreference() {
+        function createEmptyEnvelope() {
+          return {
+            schemaVersion: storeSchemaVersion,
+            data: {},
+          };
+        }
+
+        function isObjectRecord(value) {
+          return !!value && typeof value === 'object' && !Array.isArray(value);
+        }
+
+        function persistEnvelope(storage, rootKey, envelope) {
+          if (!storage) return;
+          try {
+            storage.setItem(rootKey, JSON.stringify(envelope));
+          } catch {}
+        }
+
+        function readEnvelope(storage, rootKey) {
+          if (!storage) return createEmptyEnvelope();
+          try {
+            const raw = storage.getItem(rootKey);
+            if (!raw) {
+              const fresh = createEmptyEnvelope();
+              persistEnvelope(storage, rootKey, fresh);
+              return fresh;
+            }
+
+            const parsed = JSON.parse(raw);
+            if (!isObjectRecord(parsed)) {
+              const fresh = createEmptyEnvelope();
+              persistEnvelope(storage, rootKey, fresh);
+              return fresh;
+            }
+            if (parsed.schemaVersion !== storeSchemaVersion || !isObjectRecord(parsed.data)) {
+              const fresh = createEmptyEnvelope();
+              persistEnvelope(storage, rootKey, fresh);
+              return fresh;
+            }
+
+            return parsed;
+          } catch {
+            return createEmptyEnvelope();
+          }
+        }
+
+        function createChannel(storage, rootKey) {
+          const memoryEnvelope = createEmptyEnvelope();
+
+          return {
+            get(key) {
+              if (!storage) {
+                return Object.prototype.hasOwnProperty.call(memoryEnvelope.data, key) ? memoryEnvelope.data[key] : null;
+              }
+              const envelope = readEnvelope(storage, rootKey);
+              return Object.prototype.hasOwnProperty.call(envelope.data, key) ? envelope.data[key] : null;
+            },
+            set(key, value) {
+              if (!storage) {
+                memoryEnvelope.data[key] = value;
+                return;
+              }
+              const envelope = readEnvelope(storage, rootKey);
+              envelope.data[key] = value;
+              persistEnvelope(storage, rootKey, envelope);
+            },
+            remove(key) {
+              if (!storage) {
+                if (Object.prototype.hasOwnProperty.call(memoryEnvelope.data, key)) {
+                  delete memoryEnvelope.data[key];
+                }
+                return;
+              }
+              const envelope = readEnvelope(storage, rootKey);
+              if (Object.prototype.hasOwnProperty.call(envelope.data, key)) {
+                delete envelope.data[key];
+                persistEnvelope(storage, rootKey, envelope);
+              }
+            },
+          };
+        }
+
+        function installStore() {
+          if (window.__LOVE_STORE__) return window.__LOVE_STORE__;
+
+          let localStorageRef = null;
+          let sessionStorageRef = null;
+          try {
+            localStorageRef = window.localStorage;
+          } catch {}
+          try {
+            sessionStorageRef = window.sessionStorage;
+          } catch {}
+
+          const local = createChannel(localStorageRef, localRootKey);
+          const session = createChannel(sessionStorageRef, sessionRootKey);
+
+          window.__LOVE_STORE__ = {
+            schemaVersion: storeSchemaVersion,
+            localRootKey,
+            sessionRootKey,
+            getLocal(key) {
+              return local.get(key);
+            },
+            setLocal(key, value) {
+              local.set(key, value);
+            },
+            removeLocal(key) {
+              local.remove(key);
+            },
+            getSession(key) {
+              return session.get(key);
+            },
+            setSession(key, value) {
+              session.set(key, value);
+            },
+            removeSession(key) {
+              session.remove(key);
+            },
+          };
+
+          return window.__LOVE_STORE__;
+        }
+
+        const store = installStore();
+
+        function normalizePreference(value) {
+          return value === 'light' || value === 'dark' || value === 'auto' ? value : null;
+        }
+
+        function readStoredPreference() {
+          try {
+            return normalizePreference(store.getLocal(themeStorageKey));
+          } catch {
+            return null;
+          }
+        }
+
+        function getCurrentPreference() {
+          return readStoredPreference() || normalizePreference(defaultTheme) || 'dark';
+        }
+
+        function getSystemTheme() {
+          if (!window.matchMedia) return 'dark';
+          return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+
+        function applyTheme(theme) {
+          document.documentElement.dataset.theme = theme;
+          const meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) {
+            meta.setAttribute('content', theme === 'light' ? '#fffbfc' : '#0a0a1a');
+          }
+        }
+
+        function syncThemeByPreference() {
+          const preference = getCurrentPreference();
+          const actualTheme = preference === 'auto' ? getSystemTheme() : preference;
+          applyTheme(actualTheme);
+        }
+
+        syncThemeByPreference();
+
+        try {
+          const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+          const handleSystemThemeChange = () => {
+            if (getCurrentPreference() === 'auto') {
+              applyTheme(getSystemTheme());
+            }
+          };
+          mediaQuery.addEventListener('change', handleSystemThemeChange);
+        } catch {}
+      })();
+    </script>
+  </head>
+  <body>
+    <PasswordGuard config={config.passwordConfig} messages={messages} />
+    <slot />
+    <Toast />
+  </body>
+</html>

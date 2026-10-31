@@ -1,0 +1,50 @@
+<view class="screen footer-safe">
+  <view class="eyebrow">把你的小日子，轻轻记好</view><view class="title editorial period-title">把你放在心上</view>
+  <view wx:if="{{demo}}" class="mode-banner">本机演示 · 记录不会上传</view>
+  <view wx:if="{{error}}" class="error-box" aria-live="polite">{{error}}<button wx:if="{{!view}}" class="link" bindtap="refresh">重新打开</button></view>
+  <view wx:if="{{loading}}" class="empty">正在打开这份小记录…</view>
+  <block wx:elif="{{view}}">
+    <block wx:if="{{!view.available}}">
+      <view wx:if="{{!view.canEnable}}" class="card section"><view class="title editorial">等 TA 亲手开启</view><view class="notice">由记录者在自己的微信账号确认后开启。对方愿意共享时，你就能看到实际与预计日期，也可以送出关怀。</view><view class="subtle">{{view.waiting ? '建议日期已准备好，等另一半确认。' : '目前没有对你共享的记录。'}}</view></view>
+      <block wx:else>
+        <view class="notice">{{view.suggestion ? '另一半为你准备了建议日期，请确认或修改。' : '这份记录由本人开启和维护；另一半可以在共享后查看。'}}周期按两次开始日之间的天数计算。</view>
+        <view class="card period-form">
+          <label class="input-label">最近一次实际开始日期</label><picker mode="date" value="{{startDate}}" end="{{view.today}}" bindchange="start" disabled="{{busy}}" aria-label="最近一次实际开始日期"><view class="field">{{startDate || '请选择日期'}} ›</view></picker>
+          <label class="field-label" for="initial-cycle">通常周期（天）</label><input id="initial-cycle" class="field" type="number" value="{{cycleDays}}" data-key="cycleDays" bindinput="input" disabled="{{busy}}"/><view class="subtle">初始为 25 天，可按自己的情况修改。</view>
+          <label class="field-label" for="initial-duration">预计持续天数</label><input id="initial-duration" class="field" type="number" value="{{durationDays}}" data-key="durationDays" bindinput="input" disabled="{{busy}}"/><view class="subtle">初始 5 天仅作可修改的估算，实际结束单独记录。</view>
+          <view class="setting-row"><view>共享给{{partnerName}}<view class="subtle">我同意共享全部日期记录和预测；仅本人可修改。</view></view><switch checked="{{shared}}" data-key="shared" bindchange="toggle" color="#8E5265" disabled="{{busy}}" aria-label="同意与当前情侣成员共享生理期日期"/></view>
+          <view class="setting-row"><view>站内温馨提醒<view class="subtle">开启共享后，双方均会收到提醒。</view></view><switch checked="{{reminderEnabled}}" data-key="reminderEnabled" bindchange="toggle" color="#8E5265" disabled="{{busy}}" aria-label="开启生理期站内提醒"/></view>
+          <label class="field-label">提醒时间</label><picker range="{{dayLabels}}" value="{{dayIndex}}" bindchange="advance" disabled="{{busy}}" aria-label="提醒时间"><view class="field">{{dayLabels[dayIndex]}} ›</view></picker>
+          <button class="primary section" bindtap="settings" disabled="{{busy}}" loading="{{busy}}">为我开启记录</button>
+          <button wx:if="{{!view.suggestion}}" class="link invite-link" bindtap="invite" disabled="{{busy}}">这是 TA 的日期，请另一半确认开启</button>
+        </view>
+      </block>
+    </block>
+    <block wx:else>
+      <view class="period-caption">{{view.ownerName}}的小日子 · {{view.own ? (view.shared ? '已与另一半共享' : '仅自己可见') : 'TA 愿意与你分享'}}</view>
+      <view class="card period-hero">
+        <view class="subtle">下一次预计开始</view>
+        <view class="period-date counter">{{view.forecast ? view.forecast.nextDate : '等待记录'}}</view>
+        <view class="period-status">{{!view.forecast ? '从一次真实记录开始' : view.forecast.remaining > 0 ? '预计还有 ' + view.forecast.remaining + ' 天' : view.forecast.remaining === 0 ? '今天是预计日期，以实际情况为准' : '预计日期已过，等待新的实际记录'}}</view>
+        <view wx:if="{{view.forecast}}" class="subtle">最近开始：{{view.forecast.lastStart}} · 周期 {{view.cycleDays}} 天</view>
+        <view class="period-note">日期是估算，不会自动把预计日期记为已发生。实际记录更新后会重新计算。</view>
+      </view>
+      <view wx:if="{{!view.own}}" class="card section"><view class="title editorial">今天，也温柔一点</view><view class="notice">多问一句“今天感觉怎么样”，把关心留给 TA。</view><picker range="{{careLabels}}" value="{{careIndex}}" bindchange="careChoice" aria-label="选择温馨关怀"><view class="field">{{careLabels[careIndex]}} ›</view></picker><button class="primary section" bindtap="care" disabled="{{busy}}" loading="{{busy}}">送出今天的关怀</button><view class="subtle care-hint">每天最多一条站内关怀，重复点击不会重复发送。</view></view>
+      <view class="section between"><view class="title editorial">真实记录，慢慢记</view><button wx:if="{{view.own}}" class="link" bindtap="add" disabled="{{busy}}">记一次开始</button></view>
+      <view wx:if="{{view.own && formOpen}}" class="card period-form">
+        <view class="input-label">{{editingId ? '修改这次记录' : '新的实际记录'}}</view>
+        <label class="field-label">实际开始日期</label><picker mode="date" value="{{startDate}}" end="{{view.today}}" bindchange="start" disabled="{{busy}}" aria-label="实际开始日期"><view class="field">{{startDate}} ›</view></picker>
+        <label class="field-label">实际结束日期（可稍后补记）</label><picker mode="date" value="{{endDate || startDate}}" start="{{startDate}}" end="{{view.today}}" bindchange="end" disabled="{{busy}}" aria-label="实际结束日期"><view class="field">{{endDate || '尚未记录结束'}} ›</view></picker><button wx:if="{{endDate}}" class="link" bindtap="clearEnd" disabled="{{busy}}">改为尚未记录结束</button>
+        <button class="primary section" bindtap="save" disabled="{{busy}}" loading="{{busy}}">保存实际日期</button><button class="link invite-link" bindtap="cancel" disabled="{{busy}}">暂时不改</button>
+      </view>
+      <view class="card records"><view wx:if="{{view.records.length === 0}}" class="notice">还没有实际记录。预计日期会在首次记录后出现。</view><view wx:for="{{view.records}}" wx:key="id" class="record"><view><view>{{item.startDate}} 开始</view><view class="subtle">{{item.endDate ? item.endDate + ' 结束' : '尚未记录结束日期'}}</view></view><view wx:if="{{view.own}}" class="record-actions"><button class="link" data-id="{{item.id}}" bindtap="edit" disabled="{{busy}}">编辑</button><button class="link muted" data-id="{{item.id}}" bindtap="remove" disabled="{{busy}}">删除</button></view></view></view>
+      <view wx:if="{{view.own}}" class="card section period-form"><view class="title editorial">按自己的节奏设置</view><label class="field-label" for="cycle">通常周期（天）</label><input id="cycle" class="field" type="number" value="{{cycleDays}}" data-key="cycleDays" bindinput="input" disabled="{{busy}}"/><label class="field-label" for="duration">预计持续天数</label><input id="duration" class="field" type="number" value="{{durationDays}}" data-key="durationDays" bindinput="input" disabled="{{busy}}"/>
+        <view class="setting-row"><view>共享给{{view.partnerName}}<view class="subtle">关闭后，对方无法再读取这些日期。</view></view><switch checked="{{shared}}" data-key="shared" bindchange="toggle" color="#8E5265" disabled="{{busy}}" aria-label="与当前情侣成员共享日期记录"/></view>
+        <view class="setting-row"><view>站内温馨提醒<view class="subtle">关闭后，双方都停止新的日期提醒。</view></view><switch checked="{{reminderEnabled}}" data-key="reminderEnabled" bindchange="toggle" color="#8E5265" disabled="{{busy}}" aria-label="站内温馨提醒"/></view>
+        <label class="field-label">提醒时间</label><picker range="{{dayLabels}}" value="{{dayIndex}}" bindchange="advance" disabled="{{busy}}" aria-label="提醒时间"><view class="field">{{dayLabels[dayIndex]}} ›</view></picker><button class="secondary section" bindtap="settings" disabled="{{busy}}" loading="{{busy}}">保存设置</button>
+      </view>
+      <button class="link invite-link section" bindtap="notifications">查看我们的消息与订阅设置 ›</button>
+    </block>
+    <view class="notice section">每天北京时间 09:05 检查提醒。这里只做生活记录和日期估算，不用于避孕或医疗判断。微信外部提醒需有匹配模板与单次授权；暂未配置时仍保留站内提醒。</view>
+  </block>
+</view>

@@ -1,0 +1,10 @@
+{
+  "collections":["users","spaces","invites","entries","wishes","checkins","media","requests","attempts","counts","notifications","notificationSubscriptions","notificationDeliveries"],
+  "indexes":[
+    {"collection":"entries","name":"space_sequence","fields":[{"field":"spaceId","order":"asc"},{"field":"deleted","order":"asc"},{"field":"sequence","order":"desc"}]},
+    {"collection":"wishes","name":"space_created","fields":[{"field":"spaceId","order":"asc"},{"field":"deleted","order":"asc"},{"field":"createdAt","order":"desc"}]},
+    {"collection":"notifications","name":"recipient_sequence","fields":[{"field":"spaceId","order":"asc"},{"field":"recipientId","order":"asc"},{"field":"sequence","order":"desc"}]},
+    {"collection":"notificationSubscriptions","name":"available_template","fields":[{"field":"actorId","order":"asc"},{"field":"spaceId","order":"asc"},{"field":"templateId","order":"asc"},{"field":"state","order":"asc"},{"field":"createdAt","order":"desc"}]},
+    {"collection":"notificationDeliveries","name":"worker_status","fields":[{"field":"status","order":"asc"},{"field":"_id","order":"asc"}]}
+  ]
+}

@@ -1,0 +1,31 @@
+<view class="screen">
+  <view class="eyebrow">留给彼此的小消息</view>
+  <view class="title editorial notification-heading">我们的消息</view>
+  <view wx:if="{{demo}}" class="mode-banner">本机演示 · 不会发送微信消息</view>
+  <view wx:if="{{error}}" class="error-box">{{error}}<button class="link" bindtap="refresh">重新打开</button></view>
+  <view wx:if="{{loading}}" class="empty">正在收集留给你的消息…</view>
+  <block wx:elif="{{!error}}">
+    <view class="subtle" aria-live="polite">{{unread > 0 ? '有 ' + unread + ' 条未读消息' : '消息都已读过'}} · 下拉刷新查看更新</view>
+    <view wx:if="{{!items.length}}" class="card empty section"><view class="empty-title">还没有新的消息</view><view class="subtle">TA 留下悄悄话、发布照片时，会在这里告诉你。</view></view>
+    <view wx:for="{{items}}" wx:key="id" class="card notification-card">
+      <button class="notification-open" data-id="{{item.id}}" bindtap="open" aria-label="{{(item.readAt === null ? '未读，' : '已读，') + item.title + '，打开详情'}}">
+        <view class="between"><text class="notification-title">{{item.title}}</text><text wx:if="{{item.readAt === null}}" class="pill">未读</text></view>
+        <view class="notification-summary">{{item.summary}}</view>
+        <view class="between subtle"><text>{{item.timeLabel}}</text><text>查看详情 ›</text></view>
+      </button>
+    </view>
+    <button wx:if="{{cursor}}" class="load-more" bindtap="more" loading="{{moreBusy}}" disabled="{{moreBusy}}">再看看之前的消息</button>
+    <view class="section title editorial">重要的日子，记在心上</view>
+    <view class="card section">
+      <view class="between"><view><view>纪念日站内提醒</view><view class="subtle">仅设置我自己的提醒</view></view><switch aria-label="开启我的纪念日站内提醒" color="#8E5265" checked="{{settings.anniversaryEnabled}}" disabled="{{saving}}" bindchange="enabled"/></view>
+      <view wx:if="{{settings.anniversaryEnabled}}" class="reminder-advance"><text class="input-label">提醒时间</text><picker aria-label="纪念日提前提醒天数" mode="selector" range="{{dayLabels}}" value="{{dayIndex}}" disabled="{{saving}}" bindchange="advance"><view class="field">{{dayLabels[dayIndex]}} ›</view></picker></view>
+      <view class="notice">每天北京时间 09:05 检查相恋纪念日和已有纪念日。每年重复与闰日规则保持一致。</view>
+    </view>
+    <view class="section title editorial">也在微信里提醒我</view>
+    <view class="notice">一次订阅对应一次发送机会，勾选保持选择也不代表永久授权。没有授权或发送失败时，消息仍留在这里。</view>
+    <view class="card">
+      <view wx:for="{{scenes}}" wx:key="scene" class="subscription-row"><view>{{item.label}}</view><view wx:if="{{!item.configured}}" class="subtle">暂未配置可用模板，使用站内通知</view><button wx:else class="secondary" data-scene="{{item.scene}}" bindtap="subscribe" disabled="{{!item.ready || subscribing}}" loading="{{subscribing}}">{{item.ready ? '订阅下一次微信提醒' : '下拉刷新后可再次订阅'}}</button></view>
+      <view wx:if="{{subscriptionHint}}" class="notice">{{subscriptionHint}}</view>
+    </view>
+  </block>
+</view>

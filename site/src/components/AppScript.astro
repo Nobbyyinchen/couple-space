@@ -1,0 +1,43 @@
+---
+import { resolveQuotes, type Config } from '../config';
+import { APP_EVENTS, STORAGE_KEYS } from '../constants/client';
+import { hasPasswordGuard, resolveUnlockToastMessage } from '../passwordGuardState';
+import type { LocaleMessages } from '../i18n/utils';
+
+interface Props {
+  config: Config;
+  messages?: LocaleMessages;
+}
+
+const { config, messages } = Astro.props;
+const quotes = resolveQuotes(config);
+const payload = {
+  quotes,
+  secretMessage: config.secretMessage || '♥',
+  expectedPassword: config.passwordConfig?.password || '',
+  enableWelcomeMessage: config.enableWelcomeMessage !== false,
+  defaultWelcomeMessage: resolveUnlockToastMessage(undefined, config.welcomeMessage),
+  unlockedStorageKey: STORAGE_KEYS.unlocked,
+  pageUnlockedEvent: APP_EVENTS.pageUnlocked,
+  i18n: messages ? {
+    welcomeMessage: {
+      greetingTime: messages.todaySummary.greetingTime,
+      returning: messages.todaySummary.returning,
+    },
+    easterEgg: {
+      close: messages.actions.close,
+    },
+    anniversary: {
+      suffix: messages.anniversary.suffix,
+      templates: messages.anniversary.templates,
+    },
+  } : undefined,
+};
+---
+
+<script id="app-script-payload" type="application/json" set:html={JSON.stringify(payload)}></script>
+<script>
+  import { initAppEffects } from '../scripts/app/initApp';
+
+  initAppEffects({ payloadElementId: 'app-script-payload' });
+</script>

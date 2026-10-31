@@ -1,0 +1,91 @@
+---
+import type { Config } from '../config';
+import { STORAGE_KEYS } from '../constants/client';
+import type { LocaleMessages } from '../i18n/utils';
+
+interface Props {
+  config: Config;
+  messages?: LocaleMessages;
+}
+
+const { config, messages } = Astro.props;
+const wishes = config.wishes || [];
+const storageKey = STORAGE_KEYS.wishes;
+const sectionTitle = messages?.sections.wishes || '愿望清单';
+---
+
+{wishes.length > 0 && (
+  <section class="w-full max-w-xl sm:max-w-2xl lg:max-w-3xl px-2 reveal" id="wishListSection">
+    <h2 class="section-title">{sectionTitle}</h2>
+    <div class="wish-list glass">
+      {wishes.map((w, i) => (
+        <div
+          class="wish-item"
+          data-index={i}
+          data-text={w.text}
+          data-done={w.done ? '1' : '0'}
+          role="button"
+          tabindex="0"
+        >
+          <span class="wish-check">{w.done ? '✓' : '○'}</span>
+          <span class="wish-text">{w.text}</span>
+        </div>
+      ))}
+    </div>
+  </section>
+)}
+
+{wishes.length > 0 && (
+  <script define:vars={{ wishes: wishes, storageKey: storageKey }}>
+    (function initWishList() {
+      const container = document.getElementById('wishListSection');
+      if (!container) return;
+      const store = window.__LOVE_STORE__;
+
+      function loadState() {
+        try {
+          const raw = store?.getLocal(storageKey);
+          return Array.isArray(raw) ? raw : null;
+        } catch {
+          return null;
+        }
+      }
+
+      function saveState(state) {
+        try {
+          store?.setLocal(storageKey, state);
+        } catch {}
+      }
+
+      let state = loadState();
+      if (!state || !Array.isArray(state)) {
+        state = wishes.map((w) => ({ text: w.text, done: w.done || false }));
+      }
+      if (state.length !== wishes.length) {
+        state = wishes.map((w, i) => state[i] || { text: w.text, done: w.done || false });
+      }
+
+      const items = container.querySelectorAll('.wish-item');
+      items.forEach((el, i) => {
+        const s = state[i];
+        if (s?.done) {
+          el.classList.add('done');
+          el.dataset.done = '1';
+          el.querySelector('.wish-check').textContent = '✓';
+        }
+      });
+
+      container.addEventListener('click', (e) => {
+        const item = e.target.closest('.wish-item');
+        if (!item) return;
+        const i = parseInt(item.dataset.index || '0', 10);
+        state[i] = state[i] || { text: wishes[i].text, done: false };
+        state[i].done = !state[i].done;
+        item.classList.toggle('done', state[i].done);
+        item.dataset.done = state[i].done ? '1' : '0';
+        item.querySelector('.wish-check').textContent = state[i].done ? '✓' : '○';
+        saveState(state);
+      });
+    })();
+  </script>
+)}

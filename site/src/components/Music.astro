@@ -1,0 +1,686 @@
+---
+import { resolveMusic, type Config } from '../config';
+import { APP_EVENTS, STORAGE_KEYS } from '../constants/client';
+import { hasPasswordGuard } from '../passwordGuardState';
+import type { LocaleMessages } from '../i18n/utils';
+
+interface Props {
+  config: Config;
+  messages?: LocaleMessages;
+}
+
+const { config, messages } = Astro.props;
+const music = resolveMusic(config);
+const showMusic = music.enabled && music.tracks.length > 0;
+const passwordGuardEnabled = hasPasswordGuard(config.passwordConfig);
+const expectedPassword = config.passwordConfig?.password || '';
+const unlockedStorageKey = STORAGE_KEYS.unlocked;
+const musicStateStorageKey = STORAGE_KEYS.musicState;
+const pageUnlockedEvent = APP_EVENTS.pageUnlocked;
+
+const ui = {
+  noMusic: messages?.music?.noMusic || '暂无音乐',
+  noMusicFile: messages?.music?.noMusicFile || '暂无音乐文件',
+  playPause: messages?.music?.playPause || '播放/暂停',
+  prevTrack: messages?.music?.prevTrack || '上一首',
+  nextTrack: messages?.music?.nextTrack || '下一首',
+  closePanel: messages?.music?.closePanel || '关闭面板',
+  playMode: messages?.music?.playMode || '播放模式',
+  currentMode: messages?.music?.currentMode || '当前',
+  clickToSwitch: messages?.music?.clickToSwitch || '点击切换',
+  modes: {
+    single: messages?.music?.modes?.single || '单曲',
+    sequence: messages?.music?.modes?.sequence || '顺序',
+    shuffle: messages?.music?.modes?.shuffle || '随机',
+  },
+};
+
+const modeLabel = ui.modes;
+---
+
+{showMusic && (
+  <>
+    <div class="music-panel glass" id="musicPanel">
+      <div class="flex items-center gap-3">
+        <button
+          class="music-nav-btn"
+          id="musicPrevBtn"
+          aria-label={ui.prevTrack}
+          title={ui.prevTrack}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+
+        <div class="music-info-container">
+          <div class="music-title-wrapper" id="musicTitleWrapper">
+            <div class="music-title-track" id="musicTitleTrack">
+              <span class="music-title" id="musicTitle">
+                {music.tracks[0]?.title || ui.noMusic}
+              </span>
+              <span class="music-title music-title-clone" id="musicTitleClone" aria-hidden="true">
+                {music.tracks[0]?.title || ui.noMusic}
+              </span>
+            </div>
+          </div>
+          <div class="music-visualizer" id="musicVisualizer">
+            <div class="v-bar"></div>
+            <div class="v-bar"></div>
+            <div class="v-bar"></div>
+          </div>
+        </div>
+
+        <button
+          class="music-play-btn"
+          id="playPauseBtn"
+          aria-label={ui.playPause}
+        >
+          <svg id="playIcon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <svg id="pauseIcon" class="hidden" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+        </button>
+
+        <button
+          class="music-nav-btn"
+          id="musicNextBtn"
+          aria-label={ui.nextTrack}
+          title={ui.nextTrack}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+
+        <button
+          class="music-mode-btn"
+          id="musicModeBtn"
+          aria-label={`${ui.playMode}：${modeLabel[music.playMode]}`}
+          title={ui.clickToSwitch}
+          disabled={!music.allowModeSwitch}
+        >
+          <span class="music-mode-text" id="musicModeText">{modeLabel[music.playMode]}</span>
+        </button>
+
+        <div class="music-close-divider"></div>
+
+        <button
+          class="music-close-btn"
+          id="musicCloseBtn"
+          aria-label={ui.closePanel}
+          title={ui.closePanel}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+    </div>
+    <audio id="bgMusic" preload="auto"></audio>
+
+    <style>
+      .music-info-container {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+        max-width: 140px;
+      }
+      .music-title-wrapper {
+        position: relative;
+        overflow: hidden;
+        white-space: nowrap;
+        min-width: 0;
+      }
+      .music-title-wrapper.is-marquee {
+        mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
+      }
+      .music-title-track {
+        display: inline-flex;
+        align-items: center;
+        min-width: 100%;
+        transform: translateX(0);
+      }
+      .music-title {
+        display: inline-block;
+        font-size: 0.85rem;
+        color: var(--music-text-primary, rgba(255, 255, 255, 0.9));
+        flex: none;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        transition: all 0.3s;
+      }
+      .music-title-clone {
+        display: none;
+        padding-left: 24px;
+      }
+      .music-title-wrapper.is-marquee .music-title,
+      .music-title-wrapper.is-marquee .music-title-clone {
+        max-width: none;
+        overflow: visible;
+        text-overflow: clip;
+      }
+      .music-title-wrapper.is-marquee .music-title-clone {
+        display: inline-block;
+      }
+      .music-title-wrapper.is-marquee .music-title-track {
+        animation: marquee-track var(--marquee-duration, 10s) linear infinite;
+        will-change: transform;
+      }
+      .music-panel > div {
+        min-width: 0;
+      }
+      @keyframes marquee-track {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(calc(-1 * var(--marquee-shift, 0px))); }
+      }
+      .music-visualizer {
+        display: flex;
+        align-items: flex-end;
+        gap: 2px;
+        height: 10px;
+        opacity: 0.5;
+        transition: opacity 0.3s;
+      }
+      .music-visualizer.active {
+        opacity: 1;
+      }
+      .v-bar {
+        width: 2px;
+        background: var(--music-accent, var(--pink, #ff6b9d));
+        height: 30%;
+        border-radius: 1px;
+      }
+      .music-visualizer.active .v-bar {
+        animation: v-bar-anim 0.6s ease-in-out infinite alternate;
+      }
+      .music-visualizer.active .v-bar:nth-child(2) { animation-delay: 0.2s; }
+      .music-visualizer.active .v-bar:nth-child(3) { animation-delay: 0.4s; }
+
+      @keyframes v-bar-anim {
+        from { height: 20%; }
+        to { height: 100%; }
+      }
+      .music-play-btn {
+        color: var(--music-control-strong, rgba(255, 255, 255, 0.92));
+        opacity: 0.8;
+        transition: all 0.2s;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .music-play-btn:hover {
+        opacity: 1;
+        transform: scale(1.1);
+        background: var(--music-control-surface-hover, rgba(255, 255, 255, 0.1));
+      }
+      .music-mode-btn {
+        min-width: 42px;
+        height: 24px;
+        border: none;
+        border-radius: 12px;
+        padding: 0 8px;
+        color: var(--music-control-strong, rgba(255, 255, 255, 0.92));
+        background: var(--music-control-surface-hover, rgba(255, 255, 255, 0.1));
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+      }
+      .music-mode-btn:hover {
+        filter: brightness(1.08);
+      }
+      .music-mode-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .music-mode-text {
+        font-size: 0.72rem;
+        line-height: 1;
+      }
+      .music-close-divider {
+        width: 1px;
+        height: 16px;
+        background: var(--music-divider, rgba(255, 255, 255, 0.15));
+        margin: 0 2px;
+      }
+      .music-close-btn {
+        width: 24px;
+        height: 24px;
+        border: none;
+        background: transparent;
+        color: var(--music-control-muted, rgba(255, 255, 255, 0.55));
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        border-radius: 4px;
+      }
+      .music-close-btn:hover {
+        color: var(--music-control-strong, rgba(255, 255, 255, 0.92));
+        background: var(--music-control-surface-hover, rgba(255, 255, 255, 0.1));
+      }
+      @media (max-width: 480px) {
+        .music-panel {
+          left: 12px;
+          right: 12px;
+          padding: 8px 10px;
+          width: auto;
+          transform: translateY(0) scale(1);
+        }
+        .music-panel > div {
+          gap: 8px;
+          width: 100%;
+          justify-content: space-between;
+        }
+        .music-info-container {
+          flex: 1 1 auto;
+          min-width: 0;
+          max-width: clamp(64px, 24vw, 120px);
+        }
+        .music-nav-btn,
+        .music-close-btn {
+          width: 22px;
+          height: 22px;
+        }
+        .music-play-btn {
+          padding: 3px;
+        }
+        .music-mode-btn {
+          min-width: 38px;
+          height: 22px;
+          padding: 0 6px;
+        }
+        .music-mode-text {
+          font-size: 0.68rem;
+        }
+        .music-close-divider {
+          margin: 0;
+        }
+        .music-panel.show {
+          transform: translateY(0) scale(1);
+        }
+      }
+      .hidden { display: none; }
+    </style>
+  </>
+)}
+
+{showMusic && (
+  <script
+    define:vars={{
+      tracks: music.tracks,
+      musicAutoPlay: music.autoPlay,
+      initialPlayMode: music.playMode,
+      allowModeSwitch: music.allowModeSwitch,
+      startPolicy: music.startPolicy,
+      initialVolume: music.volume,
+      rememberState: music.rememberState,
+      smartShuffleWindow: music.smartShuffleWindow,
+      passwordGuardEnabled,
+      expectedPassword,
+      unlockedStorageKey,
+      musicStateStorageKey,
+      pageUnlockedEvent,
+      uiLabels: ui,
+    }}
+  >
+    (function initMusic() {
+      const ui = uiLabels || {};
+      const MODE_LABEL = {
+        single: ui.modes?.single || '单曲',
+        sequence: ui.modes?.sequence || '顺序',
+        shuffle: ui.modes?.shuffle || '随机',
+      };
+      const MODE_CYCLE = ['single', 'sequence', 'shuffle'];
+      const audio = document.getElementById('bgMusic');
+      const btn = document.getElementById('musicBtn');
+      const panel = document.getElementById('musicPanel');
+      const pp = document.getElementById('playPauseBtn');
+      const playIcon = document.getElementById('playIcon');
+      const pauseIcon = document.getElementById('pauseIcon');
+      const prevBtn = document.getElementById('musicPrevBtn');
+      const nextBtn = document.getElementById('musicNextBtn');
+      const modeBtn = document.getElementById('musicModeBtn');
+      const modeText = document.getElementById('musicModeText');
+      const closeBtn = document.getElementById('musicCloseBtn');
+      const titleWrapperEl = document.getElementById('musicTitleWrapper');
+      const titleEl = document.getElementById('musicTitle');
+      const titleCloneEl = document.getElementById('musicTitleClone');
+      const visualizer = document.getElementById('musicVisualizer');
+
+      if (!audio || !btn || !panel || !pp || !titleWrapperEl || !titleEl) return;
+
+      let open = false;
+      let playing = false;
+      let pendingAutoplay = false;
+      let idx = 0;
+      let playMode = normalizeMode(initialPlayMode);
+      let history = [];
+      let recent = [];
+      const store = window.__LOVE_STORE__;
+
+      function normalizeMode(mode) {
+        return MODE_CYCLE.includes(mode) ? mode : 'single';
+      }
+
+      function clampVolume(value) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return 0.7;
+        return Math.min(1, Math.max(0, n));
+      }
+
+      function trackTitle(track) {
+        if (!track) return ui.noMusic || '暂无音乐';
+        return track.artist ? `${track.title} · ${track.artist}` : track.title;
+      }
+
+      function getWeight(index) {
+        const weight = Number(tracks[index] && tracks[index].weight);
+        return Number.isFinite(weight) && weight > 0 ? weight : 1;
+      }
+
+      function weightedPick(indexes) {
+        if (!indexes.length) return idx;
+        const totalWeight = indexes.reduce((sum, current) => sum + getWeight(current), 0);
+        let hit = Math.random() * totalWeight;
+        for (const current of indexes) {
+          hit -= getWeight(current);
+          if (hit <= 0) return current;
+        }
+        return indexes[indexes.length - 1];
+      }
+
+      function pickShuffleIndex() {
+        if (tracks.length <= 1) return idx;
+
+        const all = tracks.map((_, i) => i).filter((i) => i !== idx);
+        const blocked = new Set(recent);
+        let candidates = all.filter((i) => !blocked.has(i));
+        if (!candidates.length) candidates = all;
+        return weightedPick(candidates);
+      }
+
+      function pushHistory(index) {
+        if (history[history.length - 1] !== index) history.push(index);
+        if (history.length > 120) history = history.slice(-120);
+      }
+
+      function pushRecent(index) {
+        const windowSize = Math.max(1, Math.floor(Number(smartShuffleWindow) || 1));
+        recent.push(index);
+        if (recent.length > windowSize) recent = recent.slice(-windowSize);
+      }
+
+      function loadPersistedState() {
+        if (!rememberState) return null;
+        try {
+          const parsed = store?.getLocal(musicStateStorageKey);
+          if (!parsed || typeof parsed !== 'object') return null;
+
+          const savedIndex = Number.isInteger(parsed.idx) ? parsed.idx : null;
+          const savedMode = normalizeMode(parsed.playMode);
+          const savedVolume = Number.isFinite(parsed.volume) ? clampVolume(parsed.volume) : null;
+
+          return {
+            idx: savedIndex,
+            playMode: savedMode,
+            volume: savedVolume,
+          };
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function saveState() {
+        if (!rememberState) return;
+        try {
+          store?.setLocal(musicStateStorageKey, {
+            idx,
+            playMode,
+            volume: audio.volume,
+          });
+        } catch (e) {
+          // ignore write failure
+        }
+      }
+
+      function updateMarqueeState() {
+        if (!titleWrapperEl) return;
+        if (titleCloneEl) titleCloneEl.textContent = titleEl.textContent || '';
+
+        const wrapperWidth = titleWrapperEl.clientWidth;
+        const textWidth = titleEl.scrollWidth;
+        const shouldMarquee = playing && textWidth > wrapperWidth;
+
+        titleWrapperEl.classList.toggle('is-marquee', shouldMarquee);
+        if (!shouldMarquee) {
+          titleWrapperEl.style.removeProperty('--marquee-shift');
+          titleWrapperEl.style.removeProperty('--marquee-duration');
+          return;
+        }
+
+        const gap = 24;
+        const shift = textWidth + gap;
+        const pxPerSecond = 34;
+        const duration = Math.max(6, shift / pxPerSecond);
+
+        titleWrapperEl.style.setProperty('--marquee-shift', `${shift}px`);
+        titleWrapperEl.style.setProperty('--marquee-duration', `${duration}s`);
+      }
+
+      function syncModeUI() {
+        if (modeText) modeText.textContent = MODE_LABEL[playMode] || MODE_LABEL.single;
+        if (modeBtn) {
+          const text = MODE_LABEL[playMode] || MODE_LABEL.single;
+          const playModeLabel = ui.playMode || '播放模式';
+          const currentLabel = ui.currentMode || '当前';
+          const switchLabel = ui.clickToSwitch || '点击切换';
+          modeBtn.setAttribute('aria-label', `${playModeLabel}：${text}`);
+          modeBtn.setAttribute('title', allowModeSwitch ? `${currentLabel}：${text}，${switchLabel}` : `${currentLabel}：${text}`);
+        }
+      }
+
+      function syncPlayingUI(isPlaying) {
+        playing = isPlaying;
+        if (playIcon && pauseIcon) {
+          playIcon.classList.toggle('hidden', isPlaying);
+          pauseIcon.classList.toggle('hidden', !isPlaying);
+        }
+        btn.classList.toggle('spinning', isPlaying);
+        if (visualizer) visualizer.classList.toggle('active', isPlaying);
+        updateMarqueeState();
+      }
+
+      function loadTrack(i, options = {}) {
+        if (!tracks.length) return;
+
+        idx = ((i % tracks.length) + tracks.length) % tracks.length;
+        const currentTrack = tracks[idx];
+        const displayTitle = trackTitle(currentTrack);
+        audio.src = currentTrack.src;
+        titleEl.textContent = displayTitle;
+        if (titleCloneEl) titleCloneEl.textContent = displayTitle;
+
+        if (!options.skipHistory) pushHistory(idx);
+        if (!options.skipRecent) pushRecent(idx);
+
+        const shouldAutoPlay = options.autoPlay === true || (options.autoPlay !== false && playing);
+        if (shouldAutoPlay) {
+          audio.play().then(() => {
+            syncPlayingUI(true);
+          }).catch(() => {
+            syncPlayingUI(false);
+          });
+        }
+
+        setTimeout(() => {
+          updateMarqueeState();
+        }, 50);
+
+        saveState();
+      }
+
+      function resolveStartIndex(savedIndex) {
+        if (startPolicy === 'last' && Number.isInteger(savedIndex) && savedIndex >= 0 && savedIndex < tracks.length) {
+          return savedIndex;
+        }
+        if (startPolicy === 'random') {
+          return weightedPick(tracks.map((_, i) => i));
+        }
+        return 0;
+      }
+
+      function playNextByMode() {
+        if (playMode === 'single') {
+          audio.currentTime = 0;
+          audio.play().catch(() => {});
+          return;
+        }
+        if (playMode === 'sequence') {
+          loadTrack(idx + 1, { autoPlay: true });
+          return;
+        }
+        loadTrack(pickShuffleIndex(), { autoPlay: true });
+      }
+
+      function playPrevious() {
+        if (playMode === 'shuffle') {
+          if (history.length > 1) {
+            history.pop();
+            const previous = history[history.length - 1];
+            loadTrack(previous, { skipHistory: true, skipRecent: true, autoPlay: playing });
+            return;
+          }
+          loadTrack(idx - 1, { autoPlay: playing });
+          return;
+        }
+        loadTrack(idx - 1, { autoPlay: playing });
+      }
+
+      function playNext() {
+        if (playMode === 'shuffle') {
+          loadTrack(pickShuffleIndex(), { autoPlay: playing });
+          return;
+        }
+        loadTrack(idx + 1, { autoPlay: playing });
+      }
+
+      function cycleMode() {
+        const currentIndex = MODE_CYCLE.indexOf(playMode);
+        const nextIndex = (currentIndex + 1) % MODE_CYCLE.length;
+        playMode = MODE_CYCLE[nextIndex];
+        syncModeUI();
+        saveState();
+      }
+
+      function tryAutoplay() {
+        if (!musicAutoPlay) return;
+        audio.play().then(() => {
+          pendingAutoplay = false;
+          syncPlayingUI(true);
+        }).catch(() => {
+          pendingAutoplay = true;
+          syncPlayingUI(false);
+        });
+      }
+
+      const persisted = loadPersistedState();
+      if (allowModeSwitch && persisted?.playMode) playMode = persisted.playMode;
+      audio.volume = persisted?.volume ?? clampVolume(initialVolume);
+      const startIndex = resolveStartIndex(persisted?.idx);
+      loadTrack(startIndex, { autoPlay: false });
+      syncModeUI();
+      saveState();
+
+      btn.addEventListener('click', () => {
+        open = !open;
+        panel.classList.toggle('show', open);
+        panel.classList.remove('shake-hint');
+      });
+
+      pp.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (playing) {
+          audio.pause();
+          syncPlayingUI(false);
+        } else {
+          audio.play().then(() => syncPlayingUI(true)).catch(() => {});
+        }
+      });
+
+      if (prevBtn) {
+        prevBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          playPrevious();
+        });
+      }
+
+      if (nextBtn) {
+        nextBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          playNext();
+        });
+      }
+
+      if (modeBtn) {
+        modeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (!allowModeSwitch) return;
+          cycleMode();
+        });
+      }
+
+      if (closeBtn) {
+        closeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          open = false;
+          panel.classList.remove('show');
+          panel.classList.remove('shake-hint');
+        });
+      }
+
+      audio.addEventListener('play', () => syncPlayingUI(true));
+      audio.addEventListener('pause', () => syncPlayingUI(false));
+      audio.addEventListener('ended', playNextByMode);
+      audio.addEventListener('error', () => {
+        const noMusicFileText = ui.noMusicFile || '暂无音乐文件';
+        titleEl.textContent = noMusicFileText;
+        if (titleCloneEl) titleCloneEl.textContent = noMusicFileText;
+        titleWrapperEl.classList.remove('is-marquee');
+      });
+      window.addEventListener('resize', updateMarqueeState);
+
+      const unlockOnGesture = () => {
+        if (pendingAutoplay) {
+          tryAutoplay();
+          document.removeEventListener('click', unlockOnGesture);
+          document.removeEventListener('touchstart', unlockOnGesture);
+        }
+      };
+      document.addEventListener('click', unlockOnGesture, { passive: true });
+      document.addEventListener('touchstart', unlockOnGesture, { passive: true });
+
+      const tryAutoplayWithCheck = () => {
+        if (!musicAutoPlay) return;
+        if (passwordGuardEnabled) {
+          let unlocked = false;
+          try {
+            unlocked = store?.getLocal(unlockedStorageKey) === expectedPassword;
+          } catch (e) {
+            unlocked = false;
+          }
+          if (!unlocked) {
+            window.addEventListener(pageUnlockedEvent, () => {
+              setTimeout(tryAutoplay, 800);
+            }, { once: true });
+            return;
+          }
+        }
+        tryAutoplay();
+      };
+
+      if (musicAutoPlay) tryAutoplayWithCheck();
+    })();
+  </script>
+)}

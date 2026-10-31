@@ -1,0 +1,1 @@
+{"permissions":{"openapi":["subscribeMessage.send"]},"timeout":20,"envVariables":{"EXPECTED_APP_ID":"wx0000000000000000","MEDIA_ORIGIN":"cloud://example-env.example-bucket","NOTIFICATION_MINIPROGRAM_STATE":"trial"}}

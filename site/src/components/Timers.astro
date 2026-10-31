@@ -1,0 +1,71 @@
+---
+import { resolveTimers, type Config } from '../config';
+import type { LocaleMessages } from '../i18n/utils';
+
+interface Props {
+  config: Config;
+  messages?: LocaleMessages;
+}
+
+const { config, messages } = Astro.props;
+const timers = resolveTimers(config);
+
+const timerUnits = {
+  years: messages?.timers?.years || 'years',
+  days: messages?.timers?.days || 'days',
+  hours: messages?.timers?.hours || 'h',
+  minutes: messages?.timers?.minutes || 'm',
+  seconds: messages?.timers?.seconds || 's',
+};
+---
+
+<section class="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 w-full max-w-xl sm:max-w-2xl lg:max-w-3xl timers-row reveal-scale" id="timersSection">
+  {timers.map((t, i) => (
+    <div class="glass flex-1 min-w-[140px] px-5 py-4 text-center timer-card group" data-timer-index={i} data-timer-date={t.date}>
+      <div class="text-pink-300/70 text-xs sm:text-sm mb-2 tracking-wide">{t.icon} {t.label}</div>
+      <div class="flex items-baseline justify-center gap-1.5 mb-2">
+        <span class="timer-val text-3xl sm:text-4xl font-bold leading-none" id={`timer-${i}-years`}>0</span>
+        <span class="text-white/50 text-xs">{timerUnits.years}</span>
+        <span class="timer-val text-3xl sm:text-4xl font-bold leading-none ml-1" id={`timer-${i}-days`}>0</span>
+        <span class="text-white/50 text-xs">{timerUnits.days}</span>
+      </div>
+      <div class="flex justify-center gap-4 text-white/50 text-xs sm:text-sm">
+        <span><span class="timer-val timer-digit text-base sm:text-lg font-medium" id={`timer-${i}-h`}>00</span> {timerUnits.hours}</span>
+        <span><span class="timer-val timer-digit text-base sm:text-lg font-medium" id={`timer-${i}-m`}>00</span> {timerUnits.minutes}</span>
+        <span><span class="timer-val timer-digit text-base sm:text-lg font-medium" id={`timer-${i}-s`}>00</span> {timerUnits.seconds}</span>
+      </div>
+      <div class="text-white/50 text-xs mt-2 tabular-nums">{t.date}</div>
+    </div>
+  ))}
+</section>
+
+<script>
+  import { diffFrom } from '../utils';
+
+  function updateWithTick(id, val) {
+    const el = document.getElementById(id);
+    if (el && el.textContent !== val) {
+      el.textContent = val;
+      el.classList.add('tick');
+      setTimeout(() => el.classList.remove('tick'), 250);
+    } else if (el) el.textContent = val;
+  }
+
+  function updateTimers() {
+    const cards = document.querySelectorAll('[data-timer-index][data-timer-date]');
+    cards.forEach((card) => {
+      const i = Number.parseInt(card.dataset.timerIndex || '-1', 10);
+      const date = card.dataset.timerDate;
+      if (!date || i < 0) return;
+      const d = diffFrom(date);
+      const prefix = `timer-${i}`;
+      updateWithTick(`${prefix}-years`, String(d.years));
+      updateWithTick(`${prefix}-days`, String(d.days));
+      updateWithTick(`${prefix}-h`, d.h);
+      updateWithTick(`${prefix}-m`, d.m);
+      updateWithTick(`${prefix}-s`, d.s);
+    });
+  }
+  updateTimers();
+  setInterval(updateTimers, 1000);
+</script>

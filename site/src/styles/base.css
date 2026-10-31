@@ -1,0 +1,175 @@
+/* ═══════════════════════════════════════
+   Love Page — 主样式
+   ═══════════════════════════════════════ */
+
+:root {
+  --pink: #ff6b9d;
+  --pink-light: #ff8fab;
+  --pink-deep: #ff4d7d;
+  --pink-glow: rgba(255, 107, 157, 0.4);
+  --gold: #ffd700;
+  --gold-soft: #ffe066;
+  --gold-glow: rgba(255, 215, 0, 0.3);
+  --section-gap: 2rem;
+}
+
+/* Tailwind v4 使用级联层：自定义 reset 需放入 @layer base，
+   否则会覆盖 utility 类（如 px-4 py-8）的 padding */
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+}
+
+body {
+  font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', 'Source Han Sans SC', system-ui, sans-serif;
+  background: #0a0a1a;
+  color: #fff;
+  overflow-x: hidden;
+  min-height: 100vh;
+  transition: background 0.4s ease, color 0.4s ease;
+}
+
+[data-theme='light'] body {
+  background: #fffbfc;
+  /* 暖白色 */
+  color: #2d2327;
+  /* 暖深灰色，玫瑰黑 */
+}
+
+[data-theme='light'] .glass {
+  background: rgba(255, 255, 255, 0.85);
+  /* 提高白底不透明度 */
+  border-color: rgba(255, 107, 157, 0.12);
+  box-shadow: 0 4px 16px rgba(214, 143, 168, 0.08);
+  /* 增加柔和阴影 */
+}
+
+[data-theme='light'] .glass-gold {
+  background: rgba(255, 215, 0, 0.1);
+  border-color: rgba(255, 215, 0, 0.2);
+  box-shadow: 0 4px 16px rgba(215, 185, 0, 0.1);
+}
+
+[data-theme='light'] .anniversary-soon {
+  border-color: rgba(255, 165, 0, 0.4) !important;
+  background: rgba(255, 215, 0, 0.15) !important;
+}
+
+[data-theme='light'] .hero-names {
+  background: linear-gradient(135deg, #2d2327 20%, var(--pink-deep) 80%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+[data-theme='light'] .section-title {
+  color: #a3315d;
+  /* 更显著 */
+  font-weight: 600;
+}
+
+[data-theme='light'] .stats-label,
+[data-theme='light'] .stats-note,
+[data-theme='light'] .text-white\/10,
+[data-theme='light'] .text-white\/30,
+[data-theme='light'] .text-white\/40,
+[data-theme='light'] .text-white\/50 {
+  color: #6b5a61 !important;
+  /* 次要文字色 */
+}
+
+[data-theme='light'] .today-summary-primary {
+  color: #3a2b31;
+}
+
+[data-theme='light'] .today-summary-secondary {
+  color: #755e68;
+}
+
+[data-theme='light'] .today-summary-cta {
+  color: #7f2248;
+  border-color: rgba(255, 107, 157, 0.45);
+  background: linear-gradient(135deg, rgba(255, 107, 157, 0.18), rgba(255, 77, 125, 0.12));
+}
+
+[data-theme='light'] .share-preview-subtitle {
+  color: #6f5a63;
+}
+
+[data-theme='light'] .share-preview-close {
+  color: #5f4a54;
+  border-color: rgba(77, 53, 63, 0.16);
+  background: rgba(77, 53, 63, 0.08);
+}
+
+[data-theme='light'] .share-preview-image-wrap {
+  border-color: rgba(77, 53, 63, 0.14);
+  background: rgba(77, 53, 63, 0.04);
+}
+
+[data-theme='light'] .text-white\/60,
+[data-theme='light'] .text-white\/90 {
+  color: #4a3a41 !important;
+  /* 主要文字色，略浅于 body 色 */
+}
+
+[data-theme='light'] .text-pink-200\/60,
+[data-theme='light'] .text-pink-300\/50,
+[data-theme='light'] .text-pink-300\/70 {
+  color: #a3315d !important;
+}
+
+[data-theme='light'] .footer-main,
+[data-theme='light'] .footer-main p {
+  color: #725d67 !important;
+  /* 页脚文字色 */
+}
+
+.footer-main a {
+  color: inherit;
+}
+
+.footer-main a:hover {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+[data-theme='light'] .footer-main a:hover {
+  color: #4d3b44 !important;
+}
+
+[data-theme='light'] .wish-text {
+  color: #2d2327;
+  line-height: 1.6;
+}
+
+[data-theme='light'] .wish-item.done .wish-text {
+  color: #b0a4a9;
+}
+
+[data-theme='light'] .story-card .story-close,
+[data-theme='light'] .photo-wall-close {
+  background: rgba(45, 35, 39, 0.08);
+  color: #2d2327;
+}
+
+[data-theme='light'] .story-card .story-close:hover,
+[data-theme='light'] .photo-wall-close:hover {
+  background: rgba(45, 35, 39, 0.12);
+}
+
+[data-theme='light'] .story-card p,
+[data-theme='light'] .photo-wall-title {
+  color: #2d2327 !important;
+  line-height: 1.8;
+  /* 增强阅读性 */
+}
+
+[data-theme='light'] #loader {
+  background: #fffbfc;
+}
+
+[data-theme='light'] .loader-label {
+  color: #6b5a61;
+}

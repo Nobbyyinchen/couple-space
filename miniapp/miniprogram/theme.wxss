@@ -1,0 +1,13 @@
+/* 纸间 / Paper & Us。灰粉用于装饰，莓果色用于可读文字与操作。 */
+page {
+ --color-bg:#FAF7F2; --color-surface:#FFFDF9; --color-pink:#D9A0AA;
+ --color-accent:#8E5265; --color-accent-pressed:#743F50; --color-text:#433A38;
+ --color-secondary:#766962; --color-sage:#A9B9A4; --color-success:#52634C;
+ --color-line:#E9E0D7; --color-tint:#F3E7E6;
+ --radius-sm:12rpx; --radius-md:20rpx; --radius-lg:28rpx;
+ --space-unit:8rpx; --space-sm:16rpx; --space-md:24rpx; --space-lg:32rpx; --space-section:48rpx;
+ --font-meta:24rpx; --font-label:28rpx; --font-body:32rpx; --font-title:36rpx; --font-display:48rpx;
+ --touch-target:48px; --motion-press:120ms; --motion-progress:180ms;
+ --color-body:#61534E; --color-placeholder:#766962; --color-border-strong:#9C8177;
+ --shadow-paper:0 8rpx 28rpx rgba(67,58,56,.035);
+}

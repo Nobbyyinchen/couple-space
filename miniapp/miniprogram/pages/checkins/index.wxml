@@ -1,0 +1,25 @@
+<view class="screen history-screen">
+ <view wx:if="{{demo}}" class="mode-banner">本机演示 · 打卡记录仅保存在当前设备</view>
+ <view class="eyebrow">DAILY NOTES</view>
+ <view class="history-title editorial">把每天的我们，留下来。</view>
+ <view class="subtle">每天一份心情，一句想和你说的话。</view>
+ <picker mode="date" fields="month" start="1970-01" end="{{maxMonth}}" value="{{month}}" bindchange="changeMonth" disabled="{{loading || moreBusy}}">
+  <view class="month-picker between" role="button" aria-label="选择记录月份，当前 {{monthLabel}}"><text>{{monthLabel}}</text><text class="month-action">选择月份 ›</text></view>
+ </picker>
+ <view wx:if="{{loading}}" class="empty">正在翻开这段日子的心情…</view>
+ <view wx:if="{{error}}" class="error-box">{{error}}<button wx:if="{{!cursor}}" class="link" bindtap="retry">重新加载</button></view>
+ <block wx:if="{{!loading}}">
+  <view wx:if="{{from}}" class="loaded-range subtle">已查看 {{from}} 至 {{to}}</view>
+  <view wx:for="{{items}}" wx:key="date" wx:for-item="day" class="card day-card">
+   <view class="day-heading between"><view class="day-date editorial">{{day.label}}</view><text class="pill">{{day.status}}</text></view>
+   <view wx:for="{{day.members}}" wx:key="id" wx:for-item="member" class="member-record">
+    <view class="member-heading between"><text class="member-name">{{member.name}}</text><text class="member-mood {{member.checked ? 'checked' : ''}}">{{member.mood}}</text></view>
+    <block wx:if="{{member.checked}}"><view class="record-message">{{member.message || '这天没有留下文字，心情也被好好收藏了。'}}</view><view class="subtle">{{member.firstTime ? '打卡于 ' + member.firstTime : '首次打卡时间未记录'}}<text wx:if="{{member.edited || !member.firstTime}}">{{member.updatedTime ? ' · 更新于 ' + member.updatedTime : ''}}</text></view></block>
+    <view wx:else class="subtle missing-note">这天还没有留下心情。</view>
+   </view>
+  </view>
+  <view wx:if="{{!items.length && !error}}" class="empty"><view class="empty-title editorial">{{cursor ? '这几天，还没有留下心情。' : '这个月，还没有打卡记录。'}}</view><view class="subtle">{{cursor ? '可以继续查看本月更早的日子。' : '换个月份看看，或从今天开始记录。'}}</view><button wx:if="{{!cursor}}" class="secondary" bindtap="today">去今日打卡</button></view>
+  <button wx:if="{{cursor}}" class="secondary load-more" bindtap="more" loading="{{moreBusy}}" disabled="{{moreBusy}}">{{error ? '重试加载更早记录' : '查看本月更早 7 天'}}</button>
+  <view wx:elif="{{items.length}}" class="bottom-note">这个月的记录，已经全部翻完了。</view>
+ </block>
+</view>

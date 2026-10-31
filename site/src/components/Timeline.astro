@@ -1,0 +1,326 @@
+---
+import type { Config } from '../config';
+import type { LocaleMessages } from '../i18n/utils';
+import { DEFAULT_MESSAGES } from '../i18n/utils';
+
+interface Props {
+  config: Config;
+  messages?: LocaleMessages;
+}
+
+const { config, messages } = Astro.props;
+const milestones = config.milestones;
+
+const timelineAriaLabel = messages?.timeline?.ariaLabel || DEFAULT_MESSAGES.timeline.ariaLabel;
+const timelineNow = messages?.timeline?.now || DEFAULT_MESSAGES.timeline.now;
+const timelineClose = messages?.actions?.close || DEFAULT_MESSAGES.actions.close;
+const timelineHint = messages?.timeline?.hint || DEFAULT_MESSAGES.timeline.hint;
+---
+
+<section
+  class="w-full max-w-xl sm:max-w-2xl lg:max-w-3xl px-2 reveal timeline-section"
+  id="timelineSection"
+  data-milestone-count={milestones.length}
+  data-close-label={timelineClose}
+>
+  <div class="timeline-shell">
+    <div class="timeline-track py-5" id="timeline" aria-label={timelineAriaLabel}>
+      <div class="timeline-line"></div>
+      {milestones.map((m) => (
+        <div
+          class={`timeline-node ${m.story ? 'has-story' : ''}`}
+          data-story={m.story ?? ''}
+          data-label={m.label}
+          data-date={m.date}
+          data-icon={m.icon}
+        >
+          <div class="text-sm sm:text-base mb-1.5">{m.icon}</div>
+          <div class="timeline-dot"></div>
+          <div class="timeline-date text-white/50 text-[11px] sm:text-xs mt-1.5">{m.date.replace(/-/g, '.')}</div>
+          <div class="timeline-label text-white/60 text-xs sm:text-sm">{m.label}</div>
+        </div>
+      ))}
+      <div class="timeline-node timeline-node-now">
+        <div class="text-sm sm:text-base mb-1.5">✨</div>
+        <div class="timeline-dot glow-gold"></div>
+        <div class="timeline-date text-white/50 text-[11px] sm:text-xs mt-1.5">{timelineNow}</div>
+        <div class="timeline-label text-white/60 text-xs sm:text-sm">{timelineNow}</div>
+      </div>
+    </div>
+    <div class="timeline-fade timeline-fade-left" aria-hidden="true"></div>
+    <div class="timeline-fade timeline-fade-right" aria-hidden="true"></div>
+  </div>
+  <div class="timeline-meta" aria-live="polite">
+    <div class="timeline-hint" id="timelineHint">{timelineHint}</div>
+    <div class="timeline-progress" id="timelineProgress">1/1</div>
+  </div>
+</section>
+
+<script>
+  import { escapeHtml } from '../utils';
+
+  (function initTimeline() {
+    const section = document.getElementById('timelineSection');
+    const container = document.getElementById('timeline');
+    if (!section || !container) return;
+    const now = container.querySelector('.timeline-node:last-child');
+    if (!now) return;
+    const hint = document.getElementById('timelineHint');
+    const progress = document.getElementById('timelineProgress');
+    const leftFade = section.querySelector('.timeline-fade-left');
+    const rightFade = section.querySelector('.timeline-fade-right');
+    const timelineLine = container.querySelector('.timeline-line');
+    const milestoneCount = Number(section.dataset.milestoneCount ?? '0');
+    const closeLabel = escapeHtml(section.dataset.closeLabel ?? '');
+
+    let isScrollable = false;
+    let activeIndex = -1;
+    let hasInteracted = false;
+    let suppressClick = false;
+    let resizeTimer = 0;
+    let dragPointerId = -1;
+    let dragStartX = 0;
+    let dragStartScroll = 0;
+    let hasDragged = false;
+
+    const getNodes = () => Array.from(container.querySelectorAll<HTMLElement>('.timeline-node'));
+
+    const getThreshold = () => (window.matchMedia('(max-width: 640px)').matches ? 6 : 8);
+
+    const updateFades = () => {
+      if (!leftFade || !rightFade) return;
+      if (!isScrollable) {
+        leftFade.classList.remove('is-visible');
+        rightFade.classList.remove('is-visible');
+        return;
+      }
+      const maxScrollLeft = Math.max(container.scrollWidth - container.clientWidth, 0);
+      leftFade.classList.toggle('is-visible', container.scrollLeft > 6);
+      rightFade.classList.toggle('is-visible', container.scrollLeft < maxScrollLeft - 6);
+    };
+
+    const updateHint = () => {
+      if (!hint) return;
+      const canScroll = isScrollable && container.scrollWidth > container.clientWidth + 1;
+      hint.classList.toggle('is-visible', canScroll && !hasInteracted);
+    };
+
+    const findActiveIndex = () => {
+      const nodes = getNodes();
+      if (!nodes.length) return -1;
+      const center = container.scrollLeft + container.clientWidth / 2;
+      let minDistance = Number.POSITIVE_INFINITY;
+      let index = 0;
+
+      nodes.forEach((node, idx) => {
+        const nodeCenter = node.offsetLeft + node.clientWidth / 2;
+        const distance = Math.abs(nodeCenter - center);
+        if (distance < minDistance) {
+          minDistance = distance;
+          index = idx;
+        }
+      });
+
+      return index;
+    };
+
+    const paintActive = (index: number) => {
+      const nodes = getNodes();
+      if (!nodes.length) return;
+      const safeIndex = Math.max(0, Math.min(index, nodes.length - 1));
+      activeIndex = safeIndex;
+      nodes.forEach((node, idx) => {
+        const isActive = idx === safeIndex;
+        node.classList.toggle('is-active', isActive);
+        if (isActive) node.setAttribute('aria-current', 'step');
+        else node.removeAttribute('aria-current');
+      });
+      if (progress) progress.textContent = `${safeIndex + 1}/${nodes.length}`;
+    };
+
+    const centerNode = (targetNode: HTMLElement, behavior: ScrollBehavior = 'smooth') => {
+      const targetLeft = targetNode.offsetLeft - (container.clientWidth - targetNode.clientWidth) / 2;
+      container.scrollTo({ left: Math.max(targetLeft, 0), behavior });
+    };
+
+    const updateLine = () => {
+      if (!timelineLine) return;
+      if (!isScrollable) {
+        timelineLine.style.top = '';
+        timelineLine.style.left = '';
+        timelineLine.style.right = '';
+        timelineLine.style.width = '';
+        return;
+      }
+
+      const nodes = getNodes();
+      if (nodes.length < 2) return;
+      const first = nodes[0];
+      const last = nodes[nodes.length - 1];
+      if (!first || !last) return;
+      const firstDot = first.querySelector<HTMLElement>('.timeline-dot');
+      const start = first.offsetLeft + first.clientWidth / 2;
+      const end = last.offsetLeft + last.clientWidth / 2;
+      if (firstDot) {
+        const containerRect = container.getBoundingClientRect();
+        const dotRect = firstDot.getBoundingClientRect();
+        const dotCenterY = dotRect.top - containerRect.top + dotRect.height / 2;
+        timelineLine.style.top = `${dotCenterY}px`;
+      }
+      timelineLine.style.left = `${start}px`;
+      timelineLine.style.right = 'auto';
+      timelineLine.style.width = `${Math.max(end - start, 0)}px`;
+    };
+
+    const updateIndicators = () => {
+      if (!isScrollable) return;
+      updateLine();
+      paintActive(findActiveIndex());
+      updateFades();
+      updateHint();
+    };
+
+    const applyLayoutMode = () => {
+      const shouldScrollable = milestoneCount >= getThreshold();
+      if (shouldScrollable !== isScrollable) {
+        isScrollable = shouldScrollable;
+        section.classList.toggle('is-scrollable', shouldScrollable);
+        container.classList.toggle('is-scrollable', shouldScrollable);
+        container.tabIndex = shouldScrollable ? 0 : -1;
+        if (!shouldScrollable) {
+          container.scrollTo({ left: 0, behavior: 'auto' });
+          activeIndex = -1;
+          getNodes().forEach((node) => {
+            node.classList.remove('is-active');
+            node.removeAttribute('aria-current');
+          });
+          hasInteracted = false;
+          updateLine();
+        } else {
+          requestAnimationFrame(() => {
+            updateLine();
+            centerNode(now, 'auto');
+            paintActive(findActiveIndex());
+            updateFades();
+            updateHint();
+          });
+        }
+      }
+
+      if (isScrollable) {
+        updateIndicators();
+      } else {
+        updateFades();
+        updateHint();
+      }
+    };
+
+    applyLayoutMode();
+
+    window.addEventListener('resize', () => {
+      window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(() => applyLayoutMode(), 120);
+    });
+
+    container.addEventListener(
+      'scroll',
+      () => {
+        if (!isScrollable) return;
+        if (container.scrollLeft > 6) hasInteracted = true;
+        updateIndicators();
+      },
+      { passive: true },
+    );
+
+    container.addEventListener('keydown', (event) => {
+      if (!isScrollable) return;
+      if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+      event.preventDefault();
+      hasInteracted = true;
+      const nodes = getNodes();
+      if (!nodes.length) return;
+      const current = activeIndex >= 0 ? activeIndex : findActiveIndex();
+      const next =
+        event.key === 'ArrowRight'
+          ? Math.min(nodes.length - 1, current + 1)
+          : Math.max(0, current - 1);
+      paintActive(next);
+      centerNode(nodes[next], 'smooth');
+      updateHint();
+    });
+
+    container.addEventListener('pointerdown', (event) => {
+      if (!isScrollable || event.pointerType === 'touch' || event.button !== 0) return;
+      dragPointerId = event.pointerId;
+      dragStartX = event.clientX;
+      dragStartScroll = container.scrollLeft;
+      hasDragged = false;
+      container.classList.add('is-dragging');
+      container.setPointerCapture(event.pointerId);
+    });
+
+    container.addEventListener('pointermove', (event) => {
+      if (dragPointerId !== event.pointerId) return;
+      const delta = event.clientX - dragStartX;
+      if (Math.abs(delta) > 3) hasDragged = true;
+      if (!hasDragged) return;
+      hasInteracted = true;
+      container.scrollLeft = dragStartScroll - delta;
+    });
+
+    const stopDrag = (event: PointerEvent) => {
+      if (dragPointerId !== event.pointerId) return;
+      if (container.hasPointerCapture(event.pointerId)) {
+        container.releasePointerCapture(event.pointerId);
+      }
+      container.classList.remove('is-dragging');
+      if (hasDragged) {
+        suppressClick = true;
+        window.setTimeout(() => {
+          suppressClick = false;
+        }, 0);
+      }
+      dragPointerId = -1;
+      hasDragged = false;
+      updateIndicators();
+    };
+
+    container.addEventListener('pointerup', stopDrag);
+    container.addEventListener('pointercancel', stopDrag);
+
+    container.addEventListener('click', (e) => {
+      if (suppressClick) return;
+      const node = (e.target as HTMLElement).closest('.timeline-node');
+      if (!node || node === now) return;
+      const nodes = getNodes();
+      const index = nodes.indexOf(node as HTMLElement);
+      if (index >= 0) {
+        paintActive(index);
+      }
+      const story = (node as HTMLElement).dataset.story;
+      if (!story) return;
+      const overlay = document.createElement('div');
+      overlay.className = 'story-overlay';
+      const icon = (node as HTMLElement).dataset.icon ?? '';
+      const label = (node as HTMLElement).dataset.label ?? '';
+      const date = ((node as HTMLElement).dataset.date ?? '').replace(/-/g, '.');
+      overlay.innerHTML =
+        `<div class="story-card glass">` +
+        `<button class="story-close" aria-label="${closeLabel}">×</button>` +
+        `<div class="text-pink-300/70 text-sm mb-2">${escapeHtml(icon + ' ' + label + ' · ' + date)}</div>` +
+        `<p class="text-white/90 text-sm sm:text-base leading-relaxed"></p>` +
+        `</div>`;
+      (overlay.querySelector('p') as HTMLElement).textContent = story;
+      const close = () => {
+        overlay.classList.remove('show');
+        setTimeout(() => overlay.remove(), 350);
+      };
+      (overlay.querySelector('.story-close') as HTMLElement).onclick = close;
+      overlay.onclick = (ev) => {
+        if (ev.target === overlay) close();
+      };
+      document.body.appendChild(overlay);
+      requestAnimationFrame(() => overlay.classList.add('show'));
+    });
+  })();
+</script>

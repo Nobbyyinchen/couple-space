@@ -1,0 +1,19 @@
+<view class="screen has-bottom">
+ <view wx:if="{{state.demo}}" class="mode-banner">本机演示 · 这些手记不会上传或跨设备同步</view><view wx:if="{{state.offline}}" class="mode-banner">正在查看手机缓存，发手记需要连接网络。</view>
+ <view class="feed-head"><view class="eyebrow">我们的回忆集 / MOMENTS</view><view class="feed-title editorial">普通的一天，<text>也值得收藏。</text></view><view class="subtle">这里慢慢变多的，是我们一起的时光。</view></view>
+ <view class="feed-tools between"><view class="feed-tabs"><button class="feed-tab {{filter === 'all' ? 'active' : ''}}" aria-label="全部手记{{filter === 'all' ? '，已选中' : ''}}" data-filter="all" bindtap="filter">全部手记</button><button class="feed-tab {{filter === 'photos' ? 'active' : ''}}" aria-label="相片时光{{filter === 'photos' ? '，已选中' : ''}}" data-filter="photos" bindtap="filter">相片时光</button></view><text class="loaded-count">已加载 {{entries.length}} 篇</text></view>
+ <text class="field-label search-label">找一段回忆</text><view class="search-box"><image aria-hidden="true" src="/assets/icon-search.png"/><input placeholder-style="color:#766962" aria-label="搜索已加载的回忆" class="search" value="{{query}}" bindinput="search" placeholder="搜索已加载的回忆…" maxlength="100"/></view>
+ <view wx:if="{{error}}" class="error-box">{{error}}<button class="link" bindtap="refresh">再试一次</button></view><view wx:if="{{loading}}" class="empty">正在翻开时光手记…</view>
+ <view wx:if="{{!loading && !visible.length}}" class="empty feed-empty"><view class="empty-symbol"><image aria-hidden="true" src="/assets/icon-memories.png"/></view><view class="empty-title editorial">{{query ? '还没有找到这段回忆' : '故事，从一个小瞬间开始。'}}</view><view class="subtle">{{query ? '试试其他关键词，或加载更早的回忆。' : '写下今天，也会成为明天想念的日常。'}}</view></view>
+ <view wx:for="{{visible}}" wx:key="id" wx:for-item="entry" class="feed-post {{filter === 'photos' ? 'photo-story' : ''}}">
+  <view class="timeline-date"><text class="timeline-dot"></text><text>{{entry.date}}</text><text class="timeline-number">手记 / {{index + 1}}</text></view>
+  <view class="story-paper"><view hover-class="story-hover" class="row" data-id="{{entry.id}}" bindtap="detail"><view class="avatar mini">{{entry.initial}}</view><view><view class="author-name">{{entry.authorName}}</view><view class="date-label">{{entry.timeLabel}}</view></view></view>
+   <view wx:if="{{filter === 'photos'}}" class="post-grid {{entry.images.length === 1 ? 'single' : ''}}"><image lazy-load="true" aria-label="回忆照片，第 {{index + 1}} 张" wx:for="{{entry.images}}" wx:key="id" src="{{item.url}}" mode="aspectFill" data-id="{{entry.id}}" data-url="{{item.url}}" bindtap="preview"/></view>
+   <view hover-class="story-hover" data-id="{{entry.id}}" bindtap="detail"><view wx:if="{{entry.title}}" class="post-title">{{entry.title}}</view><view class="post-body">{{entry.body}}</view></view>
+   <view wx:if="{{filter !== 'photos'}}" class="post-grid {{entry.images.length === 1 ? 'single' : ''}}"><image lazy-load="true" aria-label="回忆照片，第 {{index + 1}} 张" wx:for="{{entry.images}}" wx:key="id" src="{{item.url}}" mode="aspectFill" data-id="{{entry.id}}" data-url="{{item.url}}" bindtap="preview"/></view>
+   <view class="post-footer"><text>{{state.demo ? '演示故事' : '我们的小日常'}}</text><view class="post-reactions"><button data-id="{{entry.id}}" bindtap="like" class="post-action {{entry.liked ? 'liked' : ''}}"><image class="action-icon" src="{{entry.liked ? '/assets/icon-heart-active.png' : '/assets/icon-heart.png'}}"/>{{entry.likeCount}}</button><button data-id="{{entry.id}}" bindtap="detail" class="post-action">留言 {{entry.commentCount}}</button></view></view>
+  </view>
+ </view>
+ <button wx:if="{{cursor}}" class="load-more" bindtap="more" disabled="{{loadingMore}}">{{loadingMore ? '正在翻找更早的回忆…' : '翻开更早的回忆 ↓'}}</button><view wx:elif="{{entries.length}}" class="bottom-note">每一篇，都是我们的独家记忆。</view>
+ <view class="fixed-bottom"><button class="primary" bindtap="compose">＋ 记下一个小美好</button></view>
+</view>

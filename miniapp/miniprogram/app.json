@@ -1,0 +1,58 @@
+{
+  "pages": [
+    "pages/home/index",
+    "pages/memories/index",
+    "pages/wishes/index",
+    "pages/us/index",
+    "pages/compose/index",
+    "pages/detail/index",
+    "pages/pair/index",
+    "pages/settings/index",
+    "pages/notifications/index",
+    "pages/period/index",
+    "pages/checkins/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "小宇和小宙",
+    "navigationBarBackgroundColor": "#FAF7F2",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#FAF7F2",
+    "backgroundTextStyle": "dark",
+    "enablePullDownRefresh": true
+  },
+  "tabBar": {
+    "color": "#766962",
+    "selectedColor": "#8E5265",
+    "backgroundColor": "#FFFDF9",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/home/index",
+        "text": "今日",
+        "iconPath": "assets/home.png",
+        "selectedIconPath": "assets/home-active.png"
+      },
+      {
+        "pagePath": "pages/memories/index",
+        "text": "回忆",
+        "iconPath": "assets/memories.png",
+        "selectedIconPath": "assets/memories-active.png"
+      },
+      {
+        "pagePath": "pages/wishes/index",
+        "text": "心愿",
+        "iconPath": "assets/wishes.png",
+        "selectedIconPath": "assets/wishes-active.png"
+      },
+      {
+        "pagePath": "pages/us/index",
+        "text": "我们",
+        "iconPath": "assets/us.png",
+        "selectedIconPath": "assets/us-active.png"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

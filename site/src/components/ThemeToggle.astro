@@ -1,0 +1,150 @@
+---
+import { APP_EVENTS, STORAGE_KEYS } from '../constants/client';
+import type { LocaleMessages } from '../i18n/utils';
+import { DEFAULT_MESSAGES } from '../i18n/utils';
+
+interface Props {
+  defaultTheme?: 'light' | 'dark' | 'auto';
+  messages?: LocaleMessages;
+}
+
+const { defaultTheme = 'dark', messages } = Astro.props;
+const storageKey = STORAGE_KEYS.theme;
+const toastEvent = APP_EVENTS.toast;
+const defaultThemeNames = DEFAULT_MESSAGES.floatingActions.themeNames;
+const themeNames = {
+  dark: messages?.floatingActions?.themeNames?.dark || defaultThemeNames.dark,
+  light: messages?.floatingActions?.themeNames?.light || defaultThemeNames.light,
+  auto: messages?.floatingActions?.themeNames?.auto || defaultThemeNames.auto,
+};
+const themeLabels = {
+  dark: (messages?.floatingActions?.currentTheme || DEFAULT_MESSAGES.floatingActions.currentTheme).replace('{theme}', themeNames.dark),
+  light: (messages?.floatingActions?.currentTheme || DEFAULT_MESSAGES.floatingActions.currentTheme).replace('{theme}', themeNames.light),
+  auto: (messages?.floatingActions?.currentTheme || DEFAULT_MESSAGES.floatingActions.currentTheme).replace('{theme}', themeNames.auto),
+};
+const toggleLabel = messages?.actions?.toggleTheme || DEFAULT_MESSAGES.actions.toggleTheme;
+const themeChangedTemplate = messages?.floatingActions?.themeChanged || DEFAULT_MESSAGES.floatingActions.themeChanged;
+---
+
+<button class="theme-toggle float-action-btn" id="themeToggle" type="button" aria-label={toggleLabel} title={toggleLabel}>
+  <svg
+    class="theme-icon"
+    id="themeToggleIcon"
+    viewBox="0 0 24 24"
+    width="18"
+    height="18"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
+  >
+    <path id="themeIconPath" d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"></path>
+  </svg>
+</button>
+
+<script define:vars={{ storageKey, defaultTheme, toastEvent, themeLabels, themeNames, themeChangedTemplate }}>
+  (function initTheme() {
+    const btn = document.getElementById('themeToggle');
+    const icon = document.getElementById('themeToggleIcon');
+    const themeIconPath = document.getElementById('themeIconPath');
+    if (!btn || !icon || !themeIconPath) return;
+    const store = window.__LOVE_STORE__;
+
+    const themeOrder = ['dark', 'light', 'auto'];
+
+    function getSystemTheme() {
+      if (!window.matchMedia) return 'dark';
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+
+    function normalizePreference(value) {
+      return value === 'dark' || value === 'light' || value === 'auto' ? value : null;
+    }
+
+    const defaultPreference = normalizePreference(defaultTheme) || 'dark';
+    const iconPathMap = {
+      dark: 'M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z',
+      light: 'M12 3v2.2 M12 18.8V21 M4.22 4.22l1.56 1.56 M18.22 18.22l1.56 1.56 M3 12h2.2 M18.8 12H21 M4.22 19.78l1.56-1.56 M18.22 5.78l1.56-1.56 M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8',
+      auto: 'M4 4h16v12H4V4z M8 20h8',
+    };
+
+    function getCurrentPreference() {
+      try {
+        return normalizePreference(store?.getLocal(storageKey)) || defaultPreference;
+      } catch {
+        return defaultPreference;
+      }
+    }
+
+    function resolveTheme(preference) {
+      return preference === 'auto' ? getSystemTheme() : preference;
+    }
+
+    function setMetaThemeColor(theme) {
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) {
+        meta.setAttribute('content', theme === 'light' ? '#fffbfc' : '#0a0a1a');
+      }
+    }
+
+    function renderButton(preference) {
+      const label = themeLabels[preference] || themeLabels.dark;
+      const path = iconPathMap[preference] || iconPathMap.dark;
+      themeIconPath.setAttribute('d', path);
+      btn.setAttribute('aria-label', label);
+      btn.setAttribute('title', label);
+    }
+
+    function applyPreference(preference, persist = true) {
+      const actualTheme = resolveTheme(preference);
+      document.documentElement.dataset.theme = actualTheme;
+      setMetaThemeColor(actualTheme);
+      renderButton(preference);
+
+      if (persist) {
+        try {
+          store?.setLocal(storageKey, preference);
+        } catch {}
+      }
+    }
+
+    function getNextPreference(current) {
+      const index = themeOrder.indexOf(current);
+      return themeOrder[(index + 1) % themeOrder.length];
+    }
+
+    function emitThemeToast(preference) {
+      const themeLabel = themeNames[preference] || preference;
+      const message = themeChangedTemplate.replace('{theme}', themeLabel);
+      window.dispatchEvent(
+        new CustomEvent(toastEvent, {
+          detail: {
+            message: message,
+            type: 'info',
+          },
+        }),
+      );
+    }
+
+    const initialPreference = getCurrentPreference();
+    applyPreference(initialPreference, false);
+
+    btn.addEventListener('click', () => {
+      const nextPreference = getNextPreference(getCurrentPreference());
+      applyPreference(nextPreference);
+      emitThemeToast(nextPreference);
+    });
+
+    try {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handleSystemThemeChange = () => {
+        if (getCurrentPreference() === 'auto') {
+          applyPreference('auto', false);
+        }
+      };
+      mediaQuery.addEventListener('change', handleSystemThemeChange);
+    } catch {}
+  })();
+</script>

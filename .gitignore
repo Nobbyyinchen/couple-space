@@ -1,0 +1,28 @@
+node_modules/
+site/node_modules/
+site/dist/
+site/.astro/
+.runtime/
+vault/
+media/
+drafts/
+export/
+backups/
+manifests/
+*.log
+.env
+.env.*
+!.env.example
+**/project.private.config.json
+**/*.private.json
+__pycache__/
+*.py[cod]
+# Generated source bundle; source files are tracked directly.
+/小宇与小宙-微信小程序源码.zip
+
+# Local-only connection settings and credentials
+**/config.local.*
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx

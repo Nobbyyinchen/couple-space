@@ -1,0 +1,9 @@
+{
+  "permissions":{"openapi":["subscribeMessage.send"]},
+  "timeout":60,
+  "envVariables":{"TZ":"Asia/Shanghai","NOTIFICATION_MINIPROGRAM_STATE":"trial"},
+  "triggers":[
+    {"name":"coupleAnniversaryDaily","type":"timer","config":"0 5 9 * * * *"},
+    {"name":"coupleNotificationRetry","type":"timer","config":"0 17 * * * * *"}
+  ]
+}
